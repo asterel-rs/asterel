@@ -1,0 +1,87 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - dependencies
+    groups:
+      rust-runtime:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - dependencies
+      - fuzz
+    groups:
+      rust-fuzz:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: cargo
+    directory: /desktop/src-tauri
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - dependencies
+      - desktop
+    groups:
+      desktop-tauri:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /desktop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - dependencies
+      - desktop
+    groups:
+      desktop-npm:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(ci):"
+    labels:
+      - ci
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(docker):"
+    labels:
+      - docker
+    groups:
+      docker-base:
+        patterns:
+          - "*"

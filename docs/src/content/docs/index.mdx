@@ -1,0 +1,80 @@
+---
+title: Asterel
+description: An early-stage Discord-first AI companion runtime for durable memory, persona, and relationship continuity.
+template: splash
+hero:
+  image:
+    file: ../../assets/asterel-turtle.png
+    alt: Hand-drawn Asterel turtle mascot with a small sparkle.
+  tagline: Continuity over conversation. An openly AI companion that carries context forward.
+  actions:
+    - text: Read the overview
+      link: ./overview/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/asterel-rs/asterel
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What Asterel is
+
+Asterel is not a chatbot. Not an agent framework. Not an LLM wrapper.
+
+It is a **companion runtime**: durable relationship state — memory, persona, affect — that a language model surfaces through conversation. The conversation is the tip; the continuity underneath is the product.
+
+Quiet. It does not lead by default. But when it speaks, the words should carry weight. It notices contours the user has not quite named yet: soft in manner, not vague in judgment; emotional, but not consumed by emotion.
+
+Asterel is still early-stage. The Discord text path, shared companion turn pipeline, memory-backed continuity, and local operator surfaces are the current center. Some pages also describe the intended shape of the runtime; where maturity matters, use the README status matrix as current truth.
+
+A README can tell you every command and route. These docs are split by reader:
+start with the practical guide if you want to run Asterel, and use the research
+packet only when you want claims, evidence, benchmarks, and paper-facing
+methodology.
+
+<ul class="thesis-notes">
+  <li>
+    <strong>Openly AI.</strong> It never pretends to be human. Identity stays
+    legible so trust can build on what the runtime actually is.
+  </li>
+  <li>
+    <strong>Memory-first.</strong> Relationship, episodic, and semantic memory can
+    shape turns when policy and recall make them relevant. What happened before
+    matters more than the last prompt alone.
+  </li>
+  <li>
+    <strong>Persona under tension.</strong> A character has internal state — affect
+    topology, latent bias, continuity signals — not a tone applied at the last
+    mile.
+  </li>
+  <li>
+    <strong>Single-operator.</strong> Designed for one person, or a small trusted
+    team, running the daemon on a machine they control. Not a public SaaS or
+    arbitrary-tenant hosting product.
+  </li>
+</ul>
+
+## Choose a path
+
+<CardGrid>
+  <Card title="Run it" icon="seti:config">
+    Start with [Getting started](./guide/getting-started/), then connect the
+    primary product surface with [Run Discord](./guide/discord-setup/).
+  </Card>
+  <Card title="Operate it" icon="seti:lock">
+    Use [Operating locally](./guide/operating-locally/), [Gateway](./operator/gateway/),
+    [Desktop console](./operator/desktop-console/), and
+    [Memory review](./operator/memory-review/) once the daemon is running.
+  </Card>
+  <Card title="Understand it" icon="open-book">
+    Read [Companion runtime](./concepts/companion/),
+    [Continuity over conversation](./concepts/continuity/), and
+    [Character and persona](./concepts/character-persona/) for the design model.
+  </Card>
+  <Card title="Audit or cite it" icon="seti:info">
+    The [Research packet](./research/) is the deeper track: falsifiable claims,
+    evidence classes, benchmark plans, ablations, and publication boundaries.
+  </Card>
+</CardGrid>

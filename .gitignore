@@ -1,0 +1,84 @@
+# ── Rust ──────────────────────────────────────────────────────
+/target
+/fuzz/target/
+**/*.rs.bk
+
+# ── Local database and WAL files ──────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── Environment / secrets (copy from .env.example) ────────────
+.env
+.env.local
+.env.*.local
+
+# ── OS generated ──────────────────────────────────────────────
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+# Linux
+*~
+
+# ── Editors / IDEs ────────────────────────────────────────────
+# Vim
+*.swp
+*.swo
+# JetBrains
+.idea/
+*.iml
+# VS Code
+.vscode/
+
+# ── Profiling / coverage ─────────────────────────────────────
+perf.data
+perf.data.old
+*.profdata
+*.profraw
+flamegraph.svg
+coverage/
+lcov.info
+
+# ── Dev environment ───────────────────────────────────────────
+.direnv/
+playground/
+# docs site ignores live in docs/.gitignore
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+.playwright-cli/
+output/playwright/
+
+# ── Git worktrees ─────────────────────────────────────────────
+.worktrees/
+.wt-*/
+
+# ── CI-generated evidence / local run artifacts ──────────────
+evidence/
+.asterel/
+lumen-out/
+
+# ── Samples (local-only test data) ────────────────────────────
+sample/
+
+# ── Local assistant/session state ─────────────────────────────
+.claude
+.agents
+.agent-state/
+/AGENTS.md
+/CLAUDE.md
+/CONTEXT.md
+/internal-docs/
+/.mailmap
+
+# ── Stray tool caches (non-Rust tools run in this tree) ───────
+.ruff_cache/
+.soulforge

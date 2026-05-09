@@ -1,0 +1,1575 @@
+{
+  "components": {
+    "schemas": {
+      "A2aAgentCard": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "authentication": {
+            "$ref": "#/components/schemas/A2aAuthentication"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/A2aCapabilities"
+          },
+          "default_input_modes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default_output_modes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "message_contract": {
+            "$ref": "#/components/schemas/A2aMessageContract"
+          }
+        },
+        "required": [
+          "schema_version",
+          "agent_id",
+          "name",
+          "description",
+          "version",
+          "url",
+          "authentication",
+          "capabilities",
+          "default_input_modes",
+          "default_output_modes"
+        ],
+        "type": "object"
+      },
+      "A2aAuthentication": {
+        "properties": {
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "A2aCapabilities": {
+        "properties": {
+          "history": {
+            "type": "boolean"
+          },
+          "streaming": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "streaming",
+          "history",
+          "tools"
+        ],
+        "type": "object"
+      },
+      "A2aInboundMessage": {
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/A2aInboundPart"
+            },
+            "type": "array"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "parts"
+        ],
+        "type": "object"
+      },
+      "A2aInboundPart": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "A2aMessageConfiguration": {
+        "properties": {
+          "accepted_output_modes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/A2aProvenance"
+          },
+          "context": {
+            "$ref": "#/components/schemas/A2aContextEnvelope"
+          }
+        },
+        "type": "object"
+      },
+      "A2aMessageRequest": {
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/A2aMessageConfiguration"
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/A2aInboundMessage"
+          },
+          "schema_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "A2aMessageResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/A2aOutboundMessage"
+          },
+          "result": {
+            "$ref": "#/components/schemas/A2aResultMetadata"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "message",
+          "result"
+        ],
+        "type": "object"
+      },
+      "A2aOutboundMessage": {
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/A2aOutboundPart"
+            },
+            "type": "array"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "parts"
+        ],
+        "type": "object"
+      },
+      "A2aOutboundPart": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "type": "object"
+      },
+      "A2aTask": {
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "response": {
+            "$ref": "#/components/schemas/A2aOutboundMessage"
+          },
+          "state": {
+            "$ref": "#/components/schemas/A2aTaskState"
+          }
+        },
+        "required": [
+          "id",
+          "conversation_id",
+          "state"
+        ],
+        "type": "object"
+      },
+      "A2aTaskListResponse": {
+        "properties": {
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/A2aTask"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "type": "object"
+      },
+      "A2aTaskState": {
+        "enum": [
+          "submitted",
+          "working",
+          "completed",
+          "failed",
+          "canceled"
+        ],
+        "type": "string"
+      },
+      "CompanionContextIngestRequest": {
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "page",
+              "video",
+              "subtitle",
+              "vision_frame"
+            ],
+            "type": "string"
+          },
+          "media_ref": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "signal_tier": {
+            "enum": [
+              "raw",
+              "belief",
+              "inferred",
+              "governance"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "source_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "tab_id": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "tab_id",
+          "kind",
+          "topic",
+          "source"
+        ],
+        "type": "object"
+      },
+      "CompanionMultimodalIngestRequest": {
+        "properties": {
+          "descriptors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "emotional_impact": {
+            "properties": {
+              "arousal": {
+                "type": "number"
+              },
+              "confidence": {
+                "type": "number"
+              },
+              "tags": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "valence": {
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "media_kind": {
+            "enum": [
+              "photo",
+              "sticker"
+            ],
+            "type": "string"
+          },
+          "source_ref": {
+            "type": "string"
+          },
+          "transcript": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_ref",
+          "media_kind",
+          "descriptors"
+        ],
+        "type": "object"
+      },
+      "CompanionSurfaceCaptionRequest": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "speaker",
+              "assistant"
+            ],
+            "type": "string"
+          },
+          "sequence": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "text"
+        ],
+        "type": "object"
+      },
+      "CompanionSurfaceRequestWindowOpen": {
+        "properties": {
+          "requested_action": {
+            "type": "string"
+          },
+          "ttl_secs": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested_action"
+        ],
+        "type": "object"
+      },
+      "CompanionSurfaceWidgetCommand": {
+        "properties": {
+          "action": {
+            "enum": [
+              "spawn",
+              "update",
+              "remove",
+              "clear",
+              "open"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "ttl_secs": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "widget_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "ProblemDetails": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code"
+        ],
+        "type": "object"
+      },
+      "A2aMessageContract": {
+        "properties": {
+          "protocol_version": {
+            "type": "string"
+          },
+          "context_envelope_version": {
+            "type": "string"
+          },
+          "supported_output_modes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "protocol_version",
+          "context_envelope_version",
+          "supported_output_modes"
+        ],
+        "type": "object"
+      },
+      "A2aProvenance": {
+        "properties": {
+          "source_agent_id": {
+            "type": "string"
+          },
+          "trace_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "A2aContextEnvelope": {
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
+      "A2aResultMetadata": {
+        "properties": {
+          "protocol_version": {
+            "type": "string"
+          },
+          "output_mode": {
+            "type": "string"
+          },
+          "capabilities_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "protocol_version",
+          "output_mode",
+          "capabilities_used"
+        ],
+        "type": "object"
+      }
+    },
+    "parameters": {
+      "ExternalSourceUrlHeader": {
+        "description": "Optional original external source URL hint used by trust scoring and audit attribution.",
+        "in": "header",
+        "name": "X-External-Source-Url",
+        "required": false,
+        "schema": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "ForwardedProtoHeader": {
+        "description": "Optional edge protocol hint. Set by a trusted reverse-proxy (for example: https).",
+        "in": "header",
+        "name": "X-Forwarded-Proto",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "OriginHeader": {
+        "description": "Optional browser origin header used as a trust signal hint.",
+        "in": "header",
+        "name": "Origin",
+        "required": false,
+        "schema": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "RefererHeader": {
+        "description": "Optional referer header used as a trust signal hint.",
+        "in": "header",
+        "name": "Referer",
+        "required": false,
+        "schema": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "SignatureStatusHeader": {
+        "description": "Optional signature validation status hint. Only inject from a trusted edge verifier.",
+        "in": "header",
+        "name": "X-Signature-Status",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "SignatureVerifiedHeader": {
+        "description": "Optional verification hint (`true`/`1`) proving upstream signature validation at a trusted edge. Untrusted clients must not set this.",
+        "in": "header",
+        "name": "X-Signature-Verified",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "SourceUrlHeader": {
+        "description": "Optional source URL hint used by trust scoring and audit attribution.",
+        "in": "header",
+        "name": "X-Source-Url",
+        "required": false,
+        "schema": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "WebhookSignatureStatusHeader": {
+        "description": "Optional webhook-specific signature validation status hint (`verified`, `ok`, etc.). Only inject from a trusted edge verifier.",
+        "in": "header",
+        "name": "X-Webhook-Signature-Status",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WebhookSourceHeader": {
+        "description": "Required for shared-secret-only webhook callers. Provides the canonical caller partition key for autosave, persona scope, and rate limiting.",
+        "in": "header",
+        "name": "X-Asterel-Source",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "info": {
+    "description": "Baseline machine-readable API contract for gateway ingress routes.",
+    "title": "Asterel Gateway API",
+    "version": "v1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/.well-known/agent.json": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/A2aAgentCard"
+                }
+              }
+            },
+            "description": "Agent card"
+          }
+        },
+        "summary": "A2A agent card"
+      }
+    },
+    "/a2a/v1/messages": {
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SignatureVerifiedHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SignatureStatusHeader"
+          },
+          {
+            "$ref": "#/components/parameters/WebhookSignatureStatusHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SourceUrlHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ExternalSourceUrlHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ForwardedProtoHeader"
+          },
+          {
+            "$ref": "#/components/parameters/OriginHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RefererHeader"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A2aMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/A2aMessageResponse"
+                }
+              }
+            },
+            "description": "A2A message response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload or blocked content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No auth configured"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Provider/tool-loop failure"
+          }
+        },
+        "summary": "A2A message ingress"
+      }
+    },
+    "/a2a/v1/tasks": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/A2aTaskListResponse"
+                }
+              }
+            },
+            "description": "A2A task list"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No auth configured"
+          }
+        },
+        "summary": "List A2A tasks"
+      }
+    },
+    "/a2a/v1/tasks/{task_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/A2aTask"
+                }
+              }
+            },
+            "description": "A2A task"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No auth configured"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "summary": "Get A2A task"
+      }
+    },
+    "/a2a/v1/tasks/{task_id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/A2aTask"
+                }
+              }
+            },
+            "description": "Task cancellation result"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No auth configured"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "summary": "Cancel an A2A task"
+      }
+    },
+    "/companion/context/ingest": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionContextIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ingested or deduplicated successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload or contract violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Tenant scope violation"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Companion context ingress for browser/page/video/subtitle/vision events"
+      }
+    },
+    "/companion/multimodal/ingest": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionMultimodalIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ingested successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload or contract violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Tenant scope violation"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Companion multimodal memory ingress for photo/sticker observations"
+      }
+    },
+    "/companion/surface/caption": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionSurfaceCaptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Caption event accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Companion surface caption event ingress"
+      }
+    },
+    "/companion/surface/request-window/open": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionSurfaceRequestWindowOpen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Request-window opened"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Open companion surface request-window"
+      }
+    },
+    "/companion/surface/request-window/{window_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "window_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request-window state"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request-window not found"
+          }
+        },
+        "summary": "Get companion surface request-window"
+      }
+    },
+    "/companion/surface/request-window/{window_id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "window_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request-window canceled"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid transition"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request-window not found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Cancel companion surface request-window"
+      }
+    },
+    "/companion/surface/request-window/{window_id}/confirm": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "window_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request-window confirmed"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid transition"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request-window not found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Confirm companion surface request-window"
+      }
+    },
+    "/companion/surface/widget": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionSurfaceWidgetCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Widget command applied"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          }
+        },
+        "summary": "Companion surface widget runtime command"
+      }
+    },
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Gateway health snapshot"
+      }
+    },
+    "/healthz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Gateway liveness alias"
+      }
+    },
+    "/ready": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Ready"
+          },
+          "503": {
+            "description": "Not Ready"
+          }
+        },
+        "summary": "Gateway readiness snapshot"
+      }
+    },
+    "/readyz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Ready"
+          },
+          "503": {
+            "description": "Not Ready"
+          }
+        },
+        "summary": "Gateway readiness alias"
+      }
+    },
+    "/openapi/v1.json": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OpenAPI document"
+          }
+        },
+        "summary": "Returns this OpenAPI contract"
+      }
+    },
+    "/pair": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Paired successfully"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid pairing code"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Pairing lockout"
+          }
+        },
+        "summary": "Exchange pairing code for bearer token"
+      }
+    },
+    "/webhook": {
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SignatureVerifiedHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SignatureStatusHeader"
+          },
+          {
+            "$ref": "#/components/parameters/WebhookSignatureStatusHeader"
+          },
+          {
+            "$ref": "#/components/parameters/WebhookSourceHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SourceUrlHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ExternalSourceUrlHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ForwardedProtoHeader"
+          },
+          {
+            "$ref": "#/components/parameters/OriginHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RefererHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processed successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid payload or blocked content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No auth configured"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Rate/cost policy exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Provider/tool-loop failure"
+          }
+        },
+        "summary": "Primary webhook ingress"
+      }
+    },
+    "/whatsapp": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Verification challenge accepted"
+          },
+          "400": {
+            "description": "Missing/invalid challenge payload"
+          },
+          "403": {
+            "description": "Verification token mismatch"
+          },
+          "404": {
+            "description": "Feature not configured or disabled"
+          }
+        },
+        "summary": "WhatsApp webhook verification (optional feature)"
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Webhook acknowledged"
+          },
+          "400": {
+            "description": "Invalid payload"
+          },
+          "401": {
+            "description": "Invalid signature"
+          },
+          "404": {
+            "description": "Feature not configured or disabled"
+          }
+        },
+        "summary": "WhatsApp incoming webhook (optional feature)"
+      }
+    },
+    "/ws": {
+      "get": {
+        "responses": {
+          "101": {
+            "description": "Switching Protocols"
+          }
+        },
+        "summary": "WebSocket chat transport"
+      }
+    }
+  }
+}

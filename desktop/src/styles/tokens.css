@@ -1,0 +1,196 @@
+/* ━━━ Design tokens ━━━ */
+
+:root {
+  /* Surface layers — warm cream paper */
+  --bg: oklch(0.965 0.007 74);
+  --bg-raised: oklch(0.95 0.009 74);
+  --bg-panel: oklch(0.988 0.003 74);
+  --bg-panel-strong: oklch(0.978 0.005 74);
+
+  /* Ink — warm charcoal, never pure black */
+  --fg: oklch(0.24 0.02 55);
+  --fg-soft: oklch(0.38 0.016 55);
+  --fg-muted: oklch(0.46 0.012 55);
+
+  /* Rules & dividers */
+  --border: oklch(0.86 0.012 68 / 0.5);
+  --border-strong: oklch(0.76 0.016 65 / 0.46);
+
+  /* Accent: sage green — like a favourite pen */
+  --accent: oklch(0.56 0.1 158);
+  --accent-strong: oklch(0.44 0.09 158);
+  --accent-soft: oklch(0.56 0.1 158 / 0.07);
+
+  /* Semantic colours — coloured pencils */
+  --error: oklch(0.56 0.16 24);
+  --error-soft: oklch(0.56 0.16 24 / 0.06);
+  --warn: oklch(0.66 0.12 78);
+  --warn-soft: oklch(0.66 0.12 78 / 0.07);
+  --info: oklch(0.56 0.07 248);
+  --info-soft: oklch(0.56 0.07 248 / 0.06);
+
+  /* Section palette — wayfinding colours that match sidebar groups */
+  --section-overview: oklch(0.56 0.1 158);
+  --section-operations: oklch(0.56 0.07 248);
+  --section-system: oklch(0.58 0.09 350);
+
+  /* Page accent — set per-route, defaults to overview green */
+  --page-accent: var(--section-overview);
+
+  /* Paper-stack shadows — always warm */
+  --shadow-xs: 0 1px 1px oklch(0.4 0.02 68 / 0.04);
+  --shadow-sm: 0 1px 2px oklch(0.4 0.02 68 / 0.045), 0 1px 1px oklch(0.4 0.02 68 / 0.03);
+  --shadow-md: 0 2px 6px oklch(0.4 0.02 68 / 0.055), 0 1px 2px oklch(0.4 0.02 68 / 0.035);
+  --shadow-lg: 0 4px 14px oklch(0.4 0.02 68 / 0.065), 0 2px 4px oklch(0.4 0.02 68 / 0.04);
+
+  /* Radii — intentionally zero for notebook aesthetic (kept for Tailwind theme refs) */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-pill: 0;
+  --radius-panel: 2px; /* only distinct radius — panel corners */
+
+  /* Spacing scale — reserved for future use, defined in desktop-workbench-design skill */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+
+  /* Motion — easing */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-expo-out: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-marker: cubic-bezier(0.16, 0.84, 0.44, 1);
+
+  /* Motion — durations */
+  --duration-micro: 80ms;
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-entrance: 280ms;
+  --duration-slow: 350ms;
+
+  /* Type scale — reserved for future use, defined in desktop-workbench-design skill */
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 13px;
+  --text-md: 15px;
+  --text-lg: 20px;
+  --text-xl: 22px;
+
+  /* Syntax highlighting — warm notebook palette */
+  --hl-keyword: oklch(0.52 0.12 350);
+  --hl-string: oklch(0.48 0.1 158);
+  --hl-number: oklch(0.55 0.14 48);
+  --hl-comment: oklch(0.56 0.01 68);
+  --hl-function: oklch(0.46 0.1 248);
+  --hl-type: oklch(0.52 0.08 78);
+  --hl-meta: oklch(0.5 0.06 200);
+  --hl-regexp: oklch(0.55 0.12 24);
+  --hl-symbol: oklch(0.52 0.1 158);
+  --hl-punctuation: oklch(0.46 0.02 55);
+  --hl-property: oklch(0.44 0.06 248);
+
+  /* Tape palette — StatusBadge colour coding */
+  --tape-ok: oklch(0.38 0.09 158);
+  --tape-ok-bg: oklch(0.56 0.1 158 / 0.06);
+  --tape-degraded: oklch(0.42 0.1 55);
+  --tape-degraded-bg: oklch(0.66 0.12 78 / 0.06);
+  --tape-error: oklch(0.38 0.13 24);
+  --tape-error-bg: oklch(0.56 0.16 24 / 0.05);
+  --tape-info: oklch(0.36 0.06 248);
+  --tape-info-bg: oklch(0.88 0.04 248 / 0.36);
+  --tape-neutral: oklch(0.42 0.02 55);
+  --tape-neutral-bg: oklch(0.5 0.01 55 / 0.04);
+
+  /* Sidebar section label colours — darker variant for text on light bg */
+  --section-overview-label: oklch(0.44 0.09 158);
+  --section-operations-label: oklch(0.4 0.08 248);
+  --section-system-label: oklch(0.44 0.1 350);
+
+  /* Progress bar & eval-health backgrounds */
+  --bar-track: oklch(0.5 0.015 68 / 0.08);
+
+  /* Code block surfaces */
+  --code-bg: oklch(0.972 0.005 74);
+  --code-header-bg: oklch(0.955 0.006 74);
+}
+
+/* ━━━ Dark mode ━━━ */
+
+:root.dark {
+  --bg: oklch(0.16 0.01 74);
+  --bg-raised: oklch(0.19 0.012 74);
+  --bg-panel: oklch(0.14 0.008 74);
+  --bg-panel-strong: oklch(0.17 0.01 74);
+
+  --fg: oklch(0.9 0.01 55);
+  --fg-soft: oklch(0.72 0.012 55);
+  --fg-muted: oklch(0.56 0.01 55);
+
+  --border: oklch(0.3 0.015 68 / 0.5);
+  --border-strong: oklch(0.38 0.018 65 / 0.46);
+
+  --accent: oklch(0.62 0.1 158);
+  --accent-strong: oklch(0.72 0.09 158);
+  --accent-soft: oklch(0.62 0.1 158 / 0.1);
+
+  --error: oklch(0.65 0.16 24);
+  --error-soft: oklch(0.65 0.16 24 / 0.1);
+  --warn: oklch(0.72 0.12 78);
+  --warn-soft: oklch(0.72 0.12 78 / 0.1);
+  --info: oklch(0.65 0.07 248);
+  --info-soft: oklch(0.65 0.07 248 / 0.1);
+
+  --section-overview: oklch(0.62 0.1 158);
+  --section-operations: oklch(0.62 0.07 248);
+  --section-system: oklch(0.64 0.09 350);
+
+  --shadow-xs: 0 1px 1px oklch(0.1 0.01 68 / 0.2);
+  --shadow-sm: 0 1px 2px oklch(0.1 0.01 68 / 0.25), 0 1px 1px oklch(0.1 0.01 68 / 0.15);
+  --shadow-md: 0 2px 6px oklch(0.1 0.01 68 / 0.3), 0 1px 2px oklch(0.1 0.01 68 / 0.2);
+  --shadow-lg: 0 4px 14px oklch(0.1 0.01 68 / 0.35), 0 2px 4px oklch(0.1 0.01 68 / 0.2);
+
+  --code-bg: oklch(0.13 0.008 74);
+  --code-header-bg: oklch(0.18 0.01 74);
+
+  /* Tape palette — dark mode visibility boost */
+  --tape-ok-bg: oklch(0.56 0.1 158 / 0.12);
+  --tape-degraded-bg: oklch(0.66 0.12 78 / 0.12);
+  --tape-error-bg: oklch(0.56 0.16 24 / 0.1);
+  --tape-info-bg: oklch(0.65 0.07 248 / 0.14);
+  --tape-neutral-bg: oklch(0.5 0.01 55 / 0.08);
+
+  /* Progress bar & section labels — dark mode */
+  --bar-track: oklch(0.5 0.015 68 / 0.14);
+  --section-overview-label: oklch(0.62 0.09 158);
+  --section-operations-label: oklch(0.6 0.08 248);
+  --section-system-label: oklch(0.62 0.1 350);
+
+  /* Dark mode: tape foreground + syntax highlighting overrides */
+
+  --tape-ok: oklch(0.7 0.09 158);
+  --tape-degraded: oklch(0.7 0.1 55);
+  --tape-error: oklch(0.7 0.13 24);
+  --tape-info: oklch(0.7 0.06 248);
+  --tape-neutral: oklch(0.7 0.02 55);
+
+  --hl-keyword: oklch(0.72 0.12 350);
+  --hl-string: oklch(0.72 0.1 158);
+  --hl-number: oklch(0.72 0.14 48);
+  --hl-comment: oklch(0.62 0.01 68);
+  --hl-function: oklch(0.72 0.1 248);
+  --hl-type: oklch(0.72 0.08 78);
+  --hl-meta: oklch(0.72 0.06 200);
+  --hl-regexp: oklch(0.72 0.12 24);
+  --hl-symbol: oklch(0.72 0.1 158);
+  --hl-punctuation: oklch(0.72 0.02 55);
+  --hl-property: oklch(0.7 0.06 248);
+}

@@ -1,0 +1,8 @@
+msrv = "1.88.0"
+
+disallowed-methods = [
+  { path = "std::process::exit", reason = "Use proper error propagation instead" },
+]
+
+too-many-arguments-threshold = 8
+cognitive-complexity-threshold = 30

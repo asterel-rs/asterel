@@ -1,0 +1,91 @@
+---
+title: Turn pipeline
+description: The shared companion-turn path used by Discord, CLI, gateway, and operator surfaces, and why that convergence is itself a design decision.
+---
+
+import Pipeline from '../../../components/Pipeline.astro';
+
+Every Asterel surface that executes a companion turn converges on the same turn contract. That sentence is easy to say and costly to maintain; it is also the mechanical backbone of the [continuity claim](../../concepts/continuity/). Discord text is the current primary proof channel. Other channels and operator surfaces reuse the contract where they create or replay turns, but they are not all equally mature product surfaces.
+
+## The shared path
+
+<Pipeline
+  label="Companion turn pipeline"
+  origin="Discord · CLI · gateway · operator surface"
+  originLabel="Accepted turn"
+  steps={[
+    {
+      title: 'Pickup / ingress policy',
+      detail: 'Decides whether the inbound event becomes a turn at all.',
+    },
+    {
+      title: 'Turn enrichment',
+      detail: 'affect detection · memory recall · persona context',
+    },
+    {
+      title: 'Response assembly + tool loop',
+      detail: 'Tool calls run through the middleware chain below.',
+    },
+    {
+      title: 'Pre-send verification',
+      kind: 'gate',
+      detail: 'Default-path gate. A bad turn here can damage the state it folds into.',
+    },
+    { title: 'Reply delivery' },
+    {
+      title: 'Post-turn update',
+      detail: 'relationship memory · persona drift · continuity cues',
+    },
+  ]}
+/>
+
+The transport-facing path lives in `src/runtime/services/companion_turn.rs`. Pre/post-turn enrichment is owned by `src/core/agent/turn_enrichment.rs`. The default tool loop runs every tool call through this middleware chain:
+
+```
+SecurityMiddleware → HookMiddleware → EntityRateLimitMiddleware → AuditMiddleware
+  → SemanticCompactionMiddleware → ToolOutputCompactionMiddleware
+  → OutputSizeLimitMiddleware → ToolResultSanitizationMiddleware
+  → SecretScrubMiddleware → TaintMiddleware
+```
+
+## Why a shared contract
+
+Three reasons the project pays the maintenance cost of unification:
+
+- **Continuity cannot silently diverge by surface.** If Discord-side enrichment and CLI-side enrichment drifted apart, the companion would become a different entity depending on where you talked to it. That is the exact failure mode the runtime is built to prevent.
+- **Verification is a choke point, not a decoration.** Response finalization is part of the default/release-intended companion path. A second pipeline is a second chance to forget to run it. The stricter naturalness gate is an additional opt-in layer for catching mechanical tone, over-formatting, and exposure patterns.
+- **Behavior is reproducible.** The same accepted turn walks the same code regardless of where it originated. That makes evals, replay, and incident triage possible; otherwise every surface is its own debugging surface.
+
+## Ingress policy lives at the edge
+
+Not every inbound event becomes a turn. The pickup / ingress policy — run before enrichment — decides:
+
+- Is this message directed at the companion, or ambient chatter?
+- Has the companion already said enough in this channel recently?
+- Is the room public, private, or a thread, and does that change the distance the companion should keep?
+
+That decision is intentionally *before* memory recall and persona context. A companion that runs enrichment on every inbound event burns budget and also reads as eager and boundary-less. The pickup gate is a character constraint as much as a performance one.
+
+## Session control is not durable memory
+
+Turn enrichment also carries thin session control: the current conversation mode, expected response density, recent unresolved loops, and behaviors the companion should avoid in this moment. That state is deliberately smaller and shorter-lived than semantic memory. It keeps a thread coherent without promoting every local cue into a long-term fact.
+
+## Typed rails and turn evidence
+
+The pipeline is guarded at multiple intervention points rather than one late catch-all check:
+
+| Rail | Example evidence |
+|---|---|
+| Input / pickup | direct mention, ambient pickup reason, rate-limit decision |
+| Context | recall IDs, accepted grounding, denied exposure |
+| Exposure | public-safe/private-safe response contract, filtered secret/private counts |
+| Tool / action | required capability, trust tier, taint labels, user-visible outcome |
+| Output | verifier reason codes, deterministic rewrite, final send/block decision |
+
+Those facts should be structured when they are produced. User-visible prose is a projection of the turn, not the source of truth for why the turn was accepted, shaped, blocked, remembered, or forgotten.
+
+## The tool loop is a subroutine, not the product
+
+When a tool call is needed mid-turn, the tool loop spins inside response assembly. It is governed, audited, rate-limited, and taint-tracked. None of that leaks into the "shape" of the turn from the user's perspective; a turn with tool calls and a turn without both exit through the same pre-send verifier and the same post-turn update.
+
+This is deliberate. A companion that visibly switches modes — "now I am an agent, now I am chatting" — has two personalities. Asterel has one.

@@ -1,0 +1,38 @@
+[package]
+name = "asterel-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = { version = "0.4", features = ["arbitrary-derive"] }
+arbitrary = { version = "1", features = ["derive"] }
+asterel = { path = "..", features = ["postgres"] }
+
+[[bin]]
+name = "fuzz_command_policy"
+path = "fuzz_targets/fuzz_command_policy.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_path_policy"
+path = "fuzz_targets/fuzz_path_policy.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_url_validation"
+path = "fuzz_targets/fuzz_url_validation.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_scrub"
+path = "fuzz_targets/fuzz_scrub.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_normalize"
+path = "fuzz_targets/fuzz_normalize.rs"
+doc = false

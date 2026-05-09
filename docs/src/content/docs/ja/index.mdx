@@ -1,0 +1,64 @@
+---
+title: Asterel
+description: Asterel は Discord を主な入口とする、初期段階の AI コンパニオン・ランタイムです。記憶、人格、関係の継続性を扱います。
+template: splash
+hero:
+  image:
+    file: ../../../assets/asterel-turtle.png
+    alt: 小さな光のそばにいる、手描きの Asterel の亀マスコット。
+  tagline: 会話より継続性。文脈を持ち越す、AI であることを隠さないコンパニオン。
+  actions:
+    - text: 概要を読む
+      link: ./overview/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub で見る
+      link: https://github.com/asterel-rs/asterel
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Asterel とは
+
+Asterel はチャットボットではありません。エージェント・フレームワークでも、LLM ラッパーでもありません。
+
+これは **コンパニオン・ランタイム** です。記憶、人格、感情状態から成る、関係を持ち越すための状態を保ち、それを言語モデルが会話として表面化します。会話は見えている先端で、その下にある継続性が中心です。
+
+静か。先導はしない。けれど、ことばが出るときには重みがある。相手がまだ名づけていない輪郭を拾う。物腰は柔らかいが、判断はぼやけない。感情はある。けれど、それに飲まれない。
+
+Asterel はまだ初期段階です。現在の中心は Discord のテキスト会話、共有されたコンパニオン・ターンのパイプライン、記憶に支えられた継続性、そしてローカル運用者向けの管理画面です。より深いキャラクター機構や一部のチャネルは、README のステータス表が現在の標準経路として示していない限り、設計上の到達点または alpha として読んでください。
+
+README はコマンドやルートの完全な一覧を説明します。このドキュメントは用途ごとに入口を分けています。まず動かしたい人は実用ガイドへ。主張、証拠、ベンチマーク、論文向けの方法論を読みたい人は research packet へ進んでください。
+
+<CardGrid>
+  <Card title="Openly AI" icon="seti:info">
+    人間のふりをしません。AI であることが読める状態に保つことで、信頼はランタイムが実際に何であるかの上に積まれます。
+  </Card>
+  <Card title="Memory-first" icon="open-book">
+    関係記憶、エピソード記憶、意味記憶は、方針と想起が適切なときにターンへ効きます。最後のプロンプトだけでなく、これまで何が起きてきたかが応答の読み方を変えます。
+  </Card>
+  <Card title="Persona under tension" icon="heart">
+    感情トポロジー、潜在バイアス、継続性シグナルを持つキャラクターです。最後に口調だけを被せる仕組みではありません。
+  </Card>
+  <Card title="Single-operator" icon="seti:lock">
+    一人、または小さな信頼済みチームが、自分たちの管理するマシンでデーモンを動かす前提です。公開 SaaS や任意テナント向けホスティング製品ではありません。
+  </Card>
+</CardGrid>
+
+## 読む順番を選ぶ
+
+<CardGrid>
+  <Card title="動かす" icon="seti:config">
+    [始め方](./guide/getting-started/) から始め、主なプロダクト表面である [Discord を動かす](./guide/discord-setup/) に進みます。
+  </Card>
+  <Card title="運用する" icon="seti:lock">
+    デーモンが動いたら、[ローカル運用](./guide/operating-locally/)、[ゲートウェイ](./operator/gateway/)、[デスクトップコンソール](./operator/desktop-console/)、[記憶レビュー](./operator/memory-review/) を見ます。
+  </Card>
+  <Card title="理解する" icon="open-book">
+    設計モデルを知りたい場合は、[コンパニオン・ランタイム](./concepts/companion/)、[会話より継続性](./concepts/continuity/)、[キャラクターと人格](./concepts/character-persona/) を読んでください。
+  </Card>
+  <Card title="検証・引用する" icon="seti:info">
+    [Research packet](./research/) は深掘り用です。反証可能な主張、証拠、ベンチマーク計画、ablation、公開境界を扱います。
+  </Card>
+</CardGrid>

@@ -1,0 +1,427 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly mutation testing: Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NEXTEST_VERSION: 0.9.114
+  CARGO_LLVM_COV_VERSION: 0.8.5
+  CARGO_MODULES_VERSION: 0.25.0
+  CARGO_VET_VERSION: 0.10.2
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: asterel_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d asterel_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/asterel_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+      - name: Check all feature combinations
+        run: cargo check-all
+      - name: Install cargo-nextest
+        run: cargo install cargo-nextest --locked --version "${CARGO_NEXTEST_VERSION}"
+      - name: Run tests
+        run: cargo nextest run --profile ci
+      - name: Run ignored Postgres-backed unit tests
+        env:
+          ASTEREL_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/asterel_test
+        run: >-
+          cargo nextest run --profile ci --run-ignored only --test-threads=1
+          -- --skip real_llm_returns_nonempty_response
+
+  optional-feature-tests:
+    name: Optional feature tests (without ONNX classifier)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: asterel_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d asterel_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/asterel_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-nextest
+        run: cargo install cargo-nextest --locked --version "${CARGO_NEXTEST_VERSION}"
+      - name: Run optional feature tests except intent-classifier
+        run: >-
+          cargo nextest run --profile ci
+          --no-default-features
+          --features discord,postgres,media,link-extraction,taste,telegram,slack,matrix,irc,twitter,whatsapp,imessage,email,mcp
+
+  coverage:
+    name: Coverage (baseline)
+    runs-on: ubuntu-latest
+    env:
+      # Gradual enforcement: raise this as coverage improves.
+      # Current baseline is conservative — increase after each test push.
+      COVERAGE_BASELINE_THRESHOLD: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked --version "${CARGO_LLVM_COV_VERSION}"
+      - name: Generate lcov report
+        run: cargo llvm-cov --lcov --output-path lcov.info -- --skip inventory_scope_lock::inventory_scope_lock
+      - name: Check coverage threshold
+        run: |
+          set -euo pipefail
+          TOTAL_LINES=$(grep -c '^DA:' lcov.info || echo 0)
+          HIT_LINES=$(grep '^DA:' lcov.info | grep -cv ',0$' || echo 0)
+          if [ "$TOTAL_LINES" -eq 0 ]; then
+            echo "::warning::No coverage data found"
+            exit 0
+          fi
+          COVERAGE=$((HIT_LINES * 100 / TOTAL_LINES))
+          echo "Line coverage: ${COVERAGE}% (${HIT_LINES}/${TOTAL_LINES} lines hit)"
+          echo "Threshold: ${COVERAGE_BASELINE_THRESHOLD}%"
+          if [ "$COVERAGE" -lt "$COVERAGE_BASELINE_THRESHOLD" ]; then
+            echo "::error::Coverage ${COVERAGE}% is below threshold ${COVERAGE_BASELINE_THRESHOLD}%"
+            exit 1
+          fi
+          echo "::notice::Coverage ${COVERAGE}% meets threshold ${COVERAGE_BASELINE_THRESHOLD}%"
+      - name: Upload coverage report artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-lcov
+          path: lcov.info
+
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --verbose
+
+  architecture-contract-drift:
+    name: Architecture + contract drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-modules
+        run: cargo install cargo-modules --locked --version "${CARGO_MODULES_VERSION}"
+      - name: Refresh generated architecture and admin contract artifacts
+        run: |
+          ./scripts/dev/generate_module_map.sh
+          ./scripts/dev/check_architecture.sh
+          python3 scripts/dev/generate_admin_contract_ts.py
+      - name: Ensure generated artifacts are checked in
+        run: git diff --exit-code -- desktop/src/lib/admin-contract.generated.ts
+      - name: Run project policy tests
+        run: cargo test --test project
+
+  desktop:
+    name: Desktop
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: Install desktop dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Refresh generated admin contract client
+        working-directory: .
+        run: python3 scripts/dev/generate_admin_contract_ts.py
+      - name: Ensure generated admin contract client is checked in
+        working-directory: .
+        run: git diff --exit-code -- desktop/src/lib/admin-contract.generated.ts
+      - name: Check desktop formatting
+        run: |
+          pnpm exec oxfmt
+          git diff --exit-code -- desktop/src
+      - name: Lint desktop
+        run: pnpm exec oxlint --react-plugin src
+      - name: Build desktop
+        run: pnpm build
+
+  memory-throughput:
+    name: Memory throughput (postgres)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: asterel_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d asterel_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Run memory throughput test
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/asterel_test BACKEND=postgres \
+          THROUGHPUT_N_STORE=400 \
+          THROUGHPUT_N_RECALL=400 \
+          THROUGHPUT_CONCURRENCY=6 \
+          THROUGHPUT_RECALL_LIMIT=10 \
+          cargo test --release --test memory -- throughput --nocapture 2>&1 | tee memory_throughput.txt
+      - name: Upload throughput output
+        uses: actions/upload-artifact@v7
+        with:
+          name: memory-throughput
+          path: memory_throughput.txt
+
+  memory-backend-parity:
+    name: Memory backend parity matrix
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: asterel_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d asterel_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [postgres, markdown]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Run backend parity lifecycle test
+        run: |
+          set -euo pipefail
+          mkdir -p .sisyphus/evidence
+          printf 'backend=%s\n' "${{ matrix.backend }}" | tee .sisyphus/evidence/task-24-ci-happy.txt
+          TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/asterel_test BACKEND=${{ matrix.backend }} cargo test --test memory -- backend_parity --nocapture 2>&1 | tee -a .sisyphus/evidence/task-24-ci-happy.txt
+      - name: Upload lifecycle happy evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: task-24-ci-happy-${{ matrix.backend }}
+          path: .sisyphus/evidence/task-24-ci-happy.txt
+
+  supply-chain:
+    name: Supply chain audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run cargo-audit
+        run: cargo audit
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Run cargo-deny (all checks)
+        run: cargo deny check
+      # cargo-vet is valuable, but its audit store is intentionally incomplete and
+      # would make every push/PR fail on routine dependency churn. Keep it on the
+      # scheduled CI path until the repo is ready to gate on a fully maintained
+      # vet policy.
+      - name: Install cargo-vet
+        if: github.event_name == 'schedule'
+        run: cargo install cargo-vet --locked --version "${CARGO_VET_VERSION}"
+      - name: Run cargo-vet
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        run: cargo vet
+
+  miri:
+    name: Miri (security modules)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - name: Verify protoc
+        run: protoc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Run Miri on security tests
+        run: |
+          cargo +nightly miri test --lib security::scrub::tests -- --test-threads=1
+          cargo +nightly miri test --lib security::policy::tests -- --test-threads=1
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation"
+          PROPTEST_CASES: "16"
+
+  mutation-testing:
+    name: Mutation testing (security)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+      - name: Run mutation testing (security modules)
+        run: |
+          cargo mutants --package asterel \
+            -F src/security/policy/command.rs \
+            -F src/security/policy/path.rs \
+            -F src/security/url_validation.rs \
+            -F src/security/scrub.rs \
+            -F src/security/external_content/normalize.rs \
+            -F src/transport/gateway/replay_guard.rs \
+            -- -- --test-threads=4
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: mutants.out/
+
+  mutation-testing-pr:
+    name: Mutation testing (PR diff)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+      - name: Run mutation testing on changed files
+        run: |
+          cargo mutants --package asterel \
+            --in-diff <(git diff origin/main...HEAD) \
+            -- -- --test-threads=4
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report-pr
+          path: mutants.out/
