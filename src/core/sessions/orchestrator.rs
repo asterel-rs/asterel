@@ -798,7 +798,8 @@ mod tests {
             .unwrap();
         assert!(fragment.contains("[History]"));
         assert!(fragment.contains("assistant: world"));
-        assert!(fragment.contains("[reasoning] trace"));
+        assert!(!fragment.contains("trace"));
+        assert!(!fragment.contains("[reasoning]"));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
