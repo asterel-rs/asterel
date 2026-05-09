@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Stage 1: Build ────────────────────────────────────────────
-FROM rust:1.88.0-slim-bookworm AS builder
+FROM rust:1.95.0-slim-bookworm AS builder
 
 WORKDIR /app
 
