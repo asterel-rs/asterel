@@ -1,0 +1,178 @@
+[package]
+name = "asterel"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["Asterel Contributors"]
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Asterel — Discord-first AI companion runtime with durable relationship memory."
+repository = "https://github.com/asterel-rs/asterel"
+readme = "README.md"
+keywords = ["ai", "companion", "discord", "memory", "runtime"]
+categories = ["command-line-utilities", "api-bindings"]
+
+[dependencies]
+# CLI
+clap = { version = "4.6", features = ["derive"] }
+
+# Async runtime — feature-optimized for size
+tokio = { version = "1", default-features = false, features = [
+    "rt-multi-thread", "macros", "time", "net",
+  "io-util", "sync", "process", "io-std", "fs", "signal",
+] }
+
+# HTTP client
+reqwest = { version = "0.13", default-features = false, features = [
+    "json", "rustls", "multipart", "stream", "query", "form",
+] }
+
+# Serialization
+serde      = { version = "1", default-features = false, features = ["derive"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+strum       = { version = "0.28", default-features = false, features = ["derive"] }
+
+# Config
+directories  = { version = "6", default-features = false }
+gcp_auth     = "0.12.6"
+toml         = "1"
+shellexpand  = { version = "3.1", default-features = false, features = ["base-0", "tilde"] }
+shlex        = { version = "1", default-features = false, features = ["std"] }
+
+# Logging
+tracing            = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter"] }
+
+# Error handling
+anyhow    = { version = "1", default-features = false, features = ["std"] }
+argon2    = { version = "0.5", default-features = false, features = ["alloc", "std"] }
+thiserror = { version = "2", default-features = false }
+
+# Base64 decoding (injection detection)
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+
+# URL / HTML parsing (link understanding)
+url     = { version = "2", default-features = false }
+scraper = { version = "0.26", optional = true }
+
+# MIME detection (media pipeline)
+infer = { version = "0.19", optional = true }
+
+# UUID generation
+uuid = { version = "1", default-features = false, features = ["v4", "std"] }
+
+# Authenticated encryption (AEAD) for secret store
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc", "getrandom"] }
+
+# HMAC for webhook signature verification
+hmac = { version = "0.13", default-features = false }
+sha2 = { version = "0.11", default-features = false }
+hex  = { version = "0.4", default-features = false, features = ["alloc"] }
+
+# Constant-time comparison (audited)
+subtle = { version = "2", default-features = false }
+
+# Cryptographic RNG for token generation
+rand = { version = "0.10.1", default-features = false, features = ["std", "thread_rng"] }
+num-traits = { version = "0.2", default-features = false }
+
+# Zeroize secret key buffers on drop
+zeroize = { version = "1", default-features = false, features = ["derive"] }
+
+# Memory / persistence
+chrono      = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+cron        = { version = "0.16", default-features = false }
+# PostgreSQL async driver
+sqlx-core     = { version = "0.8", default-features = false, features = [
+    "_rt-tokio", "_tls-rustls-ring-webpki", "chrono", "migrate",
+], optional = true }
+sqlx-postgres = { version = "0.8", default-features = false, features = [
+    "chrono", "migrate",
+], optional = true }
+pgvector = { version = "0.4", default-features = false, features = ["sqlx", "halfvec"], optional = true }
+
+# Interactive CLI prompts
+dialoguer = { version = "0.12", default-features = false, features = ["fuzzy-select", "history", "password"] }
+
+# Internationalisation (compile-time i18n)
+rust-i18n = { version = "4", default-features = false }
+
+# Channel transports
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+futures-util      = { version = "0.3", default-features = false, features = ["sink", "std"] }
+lettre            = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "rustls-tls"], optional = true }
+mail-parser       = { version = "0.11", optional = true }
+rustls            = { version = "0.23", features = ["ring"] }
+rustls-pki-types  = "1"
+tokio-rustls      = "0.26"
+webpki-roots      = "1"
+
+axum       = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "ws", "multipart"] }
+tower-http = { version = "0.6", default-features = false, features = ["limit", "timeout", "cors", "fs"] }
+
+# Streaming (OpenAI-compat SSE, WebSocket)
+async-stream = { version = "0.3", default-features = false }
+rmcp = { version = "1.5.0", features = ["client", "transport-child-process", "transport-io"], optional = true }
+
+# Intent classifier (ONNX inference)
+ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
+tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
+quick-xml = { version = "0.39.2", default-features = false }
+regex = "1.12.3"
+cliclack = "0.5"
+
+[features]
+default = [
+    "discord", "postgres",
+    "media", "link-extraction", "taste",
+]
+discord = []
+telegram = []
+slack = []
+matrix = []
+irc = []
+twitter = []
+whatsapp = []
+imessage = []
+email = ["dep:lettre", "dep:mail-parser"]
+media = ["dep:infer"]
+mcp = ["dep:rmcp"]
+link-extraction = ["dep:scraper"]
+taste = []
+postgres = ["dep:sqlx-core", "dep:sqlx-postgres", "dep:pgvector"]
+intent-classifier = ["dep:ort", "dep:tokenizers"]
+
+[profile.dev]
+codegen-units = 256
+incremental   = true
+debug         = "line-tables-only"
+
+[profile.test]
+inherits      = "dev"
+opt-level     = 0
+codegen-units = 256
+
+[profile.release]
+opt-level     = "z"
+lto           = true
+codegen-units = 1
+strip         = true
+panic         = "abort"
+
+[profile.dist]
+inherits      = "release"
+lto           = "fat"
+
+[dev-dependencies]
+tempfile   = "3"
+wiremock   = "0.6"
+proptest                = "1"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", default-features = false, features = ["fs", "std"] }
+
+[profile.fuzz]
+inherits      = "dev"
+opt-level     = 3
+incremental   = false
+codegen-units = 1

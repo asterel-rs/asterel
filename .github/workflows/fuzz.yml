@@ -1,0 +1,79 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fuzz.yml"
+      - "src/security/**"
+      - "src/contracts/network.rs"
+      - "tests/fuzz/**"
+      - "tests/fuzz.rs"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/fuzz.yml"
+      - "src/security/**"
+      - "src/contracts/network.rs"
+      - "tests/fuzz/**"
+      - "tests/fuzz.rs"
+  schedule:
+    # Nightly deep fuzz: 02:00 UTC daily
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deterministic-fuzz-smoke:
+    name: Deterministic fuzz smoke (${{ matrix.target }})
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz_command_policy::fuzz_is_command_allowed
+          - fuzz_path_policy::fuzz_is_path_allowed
+          - fuzz_url_validation::fuzz_is_private_host
+          - fuzz_url_validation::fuzz_is_private_ip
+          - fuzz_scrub::fuzz_scrub_secret_patterns
+          - fuzz_normalize::fuzz_normalize_for_detection
+          - fuzz_tenant_policy::fuzz_tenant_policy_scope_enforcement
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - uses: Swatinem/rust-cache@v2
+      - name: Run deterministic fuzz smoke
+        run: cargo test --test fuzz ${{ matrix.target }} -- --exact
+
+  deterministic-fuzz-nightly:
+    name: Deterministic fuzz nightly (${{ matrix.target }})
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz_command_policy::fuzz_is_command_allowed
+          - fuzz_path_policy::fuzz_is_path_allowed
+          - fuzz_url_validation::fuzz_is_private_host
+          - fuzz_url_validation::fuzz_is_private_ip
+          - fuzz_scrub::fuzz_scrub_secret_patterns
+          - fuzz_normalize::fuzz_normalize_for_detection
+          - fuzz_tenant_policy::fuzz_tenant_policy_scope_enforcement
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - uses: Swatinem/rust-cache@v2
+      - name: Run deterministic fuzz nightly
+        run: cargo test --test fuzz ${{ matrix.target }} -- --exact

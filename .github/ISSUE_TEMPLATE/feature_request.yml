@@ -1,0 +1,55 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please describe the feature you'd like.
+        Keep requests aligned with the companion-first scope. Do not include secrets, private memory payloads, or private chat logs.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem does this solve, or what use case does it enable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How you'd like this to work. Be as specific as you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you've considered and why they don't work.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Asterel does this relate to?
+      options:
+        - Agent / conversation loop
+        - Memory backends
+        - Channels (Telegram, Discord, etc.)
+        - Gateway / API
+        - Security / policy
+        - CLI / onboarding
+        - Configuration
+        - Tools
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other context, mockups, or references.

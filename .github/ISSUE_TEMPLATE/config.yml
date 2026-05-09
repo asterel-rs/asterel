@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Usage and support
+    url: https://github.com/asterel-rs/asterel/blob/main/SUPPORT.md
+    about: Setup/runtime troubleshooting and issue-quality guidance.
+  - name: Security vulnerability
+    url: https://github.com/asterel-rs/asterel/security/advisories/new
+    about: Report security issues privately via GitHub vulnerability reporting when enabled.
+  - name: Code of conduct
+    url: https://github.com/asterel-rs/asterel/blob/main/CODE_OF_CONDUCT.md
+    about: Community behavior and enforcement standards.

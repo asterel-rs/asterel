@@ -1,0 +1,8 @@
+msrv = "1.88.0"
+
+# Tauri's generate_context!() macro internally calls std::process::exit,
+# so we cannot inherit the workspace-level ban on that method here.
+disallowed-methods = []
+
+too-many-arguments-threshold = 8
+cognitive-complexity-threshold = 30

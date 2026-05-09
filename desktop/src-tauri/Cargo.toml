@@ -1,0 +1,37 @@
+[package]
+name = "asterel-desktop"
+version = "0.1.0"
+description = "Asterel Desktop — operator console for the Asterel companion runtime"
+authors = ["Asterel Contributors"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[lib]
+name = "asterel_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "devtools"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2"
+tauri-plugin-websocket = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-process = "2"
+tauri-plugin-log = "2"
+tauri-plugin-os = "2"
+tauri-plugin-deep-link = "2"
+
+[profile.release]
+opt-level = "s"
+strip = true
+lto = true
