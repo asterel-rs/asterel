@@ -2,11 +2,15 @@
 set -euo pipefail
 
 # Asterel Installer (Bootstrap v2)
-# Usage: curl -fsSL https://raw.githubusercontent.com/asterel-rs/asterel/main/scripts/release/install.sh | bash
+# Usage: curl -fsSL https://asterel-rs.github.io/asterel/install.sh | sh
 
 REPO="${ASTEREL_REPO:-asterel-rs/asterel}"
 BINARY_NAME="${ASTEREL_BINARY_NAME:-asterel}"
-INSTALL_DIR="${ASTEREL_INSTALL_DIR:-/usr/local/bin}"
+DEFAULT_INSTALL_DIR="${HOME:-}/.local/bin"
+if [[ -z "${HOME:-}" ]]; then
+    DEFAULT_INSTALL_DIR="/usr/local/bin"
+fi
+INSTALL_DIR="${ASTEREL_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 INSTALL_METHOD="${ASTEREL_INSTALL_METHOD:-auto}" # auto | prebuilt | source
 VERSION="${ASTEREL_VERSION:-}"
 
@@ -20,6 +24,7 @@ PLATFORM=""
 PREBUILT_SUPPORTED=true
 INSTALL_PATH=""
 INSTALLED_METHOD=""
+LATEST_RELEASE_FOUND=true
 
 # ── Color output ──
 RED='\033[0;31m'
@@ -42,7 +47,7 @@ Options:
   --guided               Interactive guided flow
   --yes, -y              Non-interactive yes to prompts
   --method <name>        Install method: auto | prebuilt | source
-  --install-dir <path>   Install directory (default: /usr/local/bin)
+  --install-dir <path>   Install directory (default: ~/.local/bin)
   --version <tag>        Release tag or source ref (default: latest release)
   --repo <owner/name>    GitHub repository (default: asterel-rs/asterel)
   --run-onboard          Run `asterel onboard` after install
@@ -115,14 +120,14 @@ detect_platform() {
 
 get_latest_version() {
     local url="https://api.github.com/repos/${REPO}/releases/latest"
-    local version
+    local response version
 
-    version="$(curl -fsSL "$url" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')"
-    if [[ -z "$version" ]]; then
-        fail "Could not determine latest version from GitHub"
+    if ! response="$(curl -fsSL "$url" 2>/dev/null)"; then
+        return 0
     fi
 
-    echo "$version"
+    version="$(printf '%s\n' "$response" | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -1)"
+    printf '%s\n' "$version"
 }
 
 resolve_version() {
@@ -134,6 +139,14 @@ resolve_version() {
     require_cmd curl
     info "Fetching latest release..."
     VERSION="$(get_latest_version)"
+    if [[ -z "$VERSION" ]]; then
+        LATEST_RELEASE_FOUND=false
+        if [[ "$INSTALL_METHOD" == "prebuilt" ]]; then
+            fail "No GitHub release found for prebuilt install. Try --method source"
+        fi
+        VERSION="main"
+        warn "No GitHub release found; falling back to source ref '${VERSION}'"
+    fi
     ok "Version: ${VERSION}"
 }
 
@@ -266,6 +279,11 @@ install_prebuilt() {
 
     if [[ "$PREBUILT_SUPPORTED" != "true" ]]; then
         warn "Prebuilt install not supported on ${PLATFORM}"
+        return 1
+    fi
+
+    if [[ "$LATEST_RELEASE_FOUND" != "true" ]]; then
+        warn "No release archive is available yet"
         return 1
     fi
 
@@ -485,9 +503,13 @@ main() {
     echo "    ${INSTALL_PATH}"
     echo
     echo "  Suggested next steps:"
-    echo "    ${INSTALL_PATH} onboard"
-    echo "    ${INSTALL_PATH} agent"
-    echo "    ${INSTALL_PATH} --help"
+    if command -v "${BINARY_NAME}" >/dev/null 2>&1; then
+        echo "    ${BINARY_NAME} onboard --interactive"
+        echo "    ${BINARY_NAME} agent"
+    else
+        echo "    ${INSTALL_PATH} onboard --interactive"
+        echo "    ${INSTALL_PATH} agent"
+    fi
     echo
     echo "  Documentation:"
     echo "    https://github.com/${REPO}"
