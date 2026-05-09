@@ -1,0 +1,5 @@
+[coverage]
+exclude-files = [
+  "sample/*",
+  "sample/**/*",
+]

@@ -1,0 +1,267 @@
+/* ━━━ App shell ━━━ */
+
+.app-shell {
+  height: 100%;
+  background: var(--bg);
+}
+
+.app-main {
+  position: relative;
+  overflow-y: auto;
+  background: transparent;
+}
+
+/* Double ruling removed — texture baked into body background */
+
+/* ━━━ Page container with entrance animation ━━━ */
+
+.app-page {
+  position: relative;
+  width: min(1240px, 100%);
+  margin: 0 auto;
+}
+
+.app-page > * {
+  animation: page-in var(--duration-entrance) var(--ease-out) both;
+}
+
+.app-page > *:nth-child(1) {
+  animation-delay: 10ms;
+}
+.app-page > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.app-page > *:nth-child(3) {
+  animation-delay: 70ms;
+}
+.app-page > *:nth-child(4) {
+  animation-delay: 100ms;
+}
+.app-page > *:nth-child(5) {
+  animation-delay: 130ms;
+}
+.app-page > *:nth-child(n + 6) {
+  animation-delay: 160ms;
+}
+
+/* ━━━ Panels — sticky notes on desk ━━━ */
+
+.app-panel,
+.app-panel-strong {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  box-shadow:
+    0 1px 3px oklch(0.4 0.02 68 / 0.08),
+    2px 3px 0 -1px oklch(0.4 0.02 68 / 0.03);
+}
+
+.app-panel {
+  border: 1px solid var(--border);
+  border-left: 2px solid color-mix(in oklch, var(--page-accent) 20%, var(--border));
+  background: var(--bg-panel);
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+}
+
+/* Hover lift only on interactive panels (wrap in <a> or <button>).
+   Static panels skip the transform to avoid unnecessary repaints. */
+a > .app-panel:hover,
+button > .app-panel:hover,
+a.app-panel:hover,
+button.app-panel:hover {
+  box-shadow:
+    0 2px 6px oklch(0.4 0.02 68 / 0.1),
+    3px 4px 0 -1px oklch(0.4 0.02 68 / 0.04);
+  transform: translateY(-1px);
+}
+
+.app-panel-strong {
+  border: 1px solid var(--border-strong);
+  border-left: 2px solid color-mix(in oklch, var(--page-accent) 28%, var(--border-strong));
+  background: var(--bg-panel-strong);
+}
+
+/* ━━━ Stages — sticky notes ━━━ */
+
+.app-stage,
+.app-stage-strong {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--bg-panel);
+  box-shadow:
+    0 1px 3px oklch(0.4 0.02 68 / 0.08),
+    2px 3px 0 -1px oklch(0.4 0.02 68 / 0.03);
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.app-stage-strong {
+  border-color: var(--border-strong);
+  background: var(--bg-panel-strong);
+}
+
+/* ━━━ Signal — raised voice for attention ━━━ */
+
+.app-signal-raised {
+  border: 1.5px solid color-mix(in oklch, var(--page-accent) 24%, var(--border-strong));
+  background: color-mix(in oklch, var(--page-accent) 2%, var(--bg-panel));
+  box-shadow: inset 2px 0 0 var(--page-accent);
+}
+
+/* ━━━ Section title ━━━ */
+
+.app-section-title {
+  color: var(--fg-soft);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ━━━ Kicker — highlighter marker stroke ━━━ */
+
+.app-kicker {
+  display: inline;
+  position: relative;
+  border: none;
+  background: transparent;
+  color: var(--accent-strong);
+  padding: 2px 6px 2px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.app-kicker::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -1px;
+  bottom: 1px;
+  height: 48%;
+  background: linear-gradient(
+    95deg,
+    oklch(0.84 0.08 148 / 0.08) 0%,
+    oklch(0.84 0.08 148 / 0.22) 8%,
+    oklch(0.84 0.08 148 / 0.26) 50%,
+    oklch(0.84 0.08 148 / 0.2) 88%,
+    oklch(0.84 0.08 148 / 0.05) 100%
+  );
+  transform: skewX(-3deg);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ━━━ Sidebar — notebook binding ━━━ */
+
+.app-sidebar {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--bg) 30%, var(--bg-panel)),
+    var(--bg)
+  );
+  border-right: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+
+/* Accent strip along the top edge — notebook binding colour */
+.app-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, oklch(0.56 0.07 158), oklch(0.6 0.08 140));
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.app-sidebar-brand {
+  background: oklch(0.96 0.012 76 / 0.45);
+}
+
+/* ━━━ Page header ━━━ */
+
+.page-header {
+  display: grid;
+  gap: 24px;
+  padding-bottom: 28px;
+  border-bottom: none;
+  position: relative;
+}
+
+.page-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--page-accent, var(--accent));
+  opacity: 0.15;
+}
+
+@media (min-width: 1280px) {
+  .page-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.page-header-main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.page-title {
+  max-width: 14ch;
+  margin: 0;
+  color: var(--fg);
+  font-family: "Inter", "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+.page-description {
+  max-width: 58rem;
+  margin: 0;
+  color: var(--fg-soft);
+  font-size: 13px;
+  line-height: 1.85;
+  text-wrap: pretty;
+}
+
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: stretch;
+  grid-column: 1 / -1;
+}
+
+.page-header-aside {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 1280px) {
+  .page-header-aside {
+    justify-content: flex-end;
+  }
+}

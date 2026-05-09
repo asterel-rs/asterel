@@ -1,0 +1,11 @@
+[alias]
+test-dev = "test -- --test-threads=4"
+test-dev-tests = "test --tests -- --test-threads=4"
+build-minimal = "build --no-default-features --features postgres"
+check-all = "check --all-features"
+coverage = "llvm-cov --html --open"
+coverage-tarpaulin = "tarpaulin --engine llvm --tests --lib --timeout 1800 --out Stdout"
+fuzz-smoke = "test --test fuzz -- --test-threads=1"
+ntest = "nextest run"
+ntest-ci = "nextest run --profile ci"
+ntest-supported-features = "nextest run --profile ci --no-default-features --features discord,postgres,media,link-extraction,taste,telegram,slack,matrix,irc,twitter,whatsapp,imessage,email,mcp"

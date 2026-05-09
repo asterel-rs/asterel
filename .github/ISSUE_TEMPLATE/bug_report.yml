@@ -1,0 +1,74 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please fill in as much detail as you can.
+        Do not include provider keys, OAuth tokens, private memory payloads, private chat logs, or personal workspace identifiers.
+        Security vulnerabilities should be reported privately: https://github.com/asterel-rs/asterel/security/advisories/new
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Run `asterel agent`
+        2. Send message "..."
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened. Include error messages or logs if available.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Asterel version
+      description: Output of `asterel --version`
+      placeholder: "asterel 0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Docker
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other context — config snippets, screenshots, related issues.

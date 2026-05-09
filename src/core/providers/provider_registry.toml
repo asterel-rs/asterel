@@ -1,0 +1,783 @@
+[[providers]]
+id = "openrouter"
+display_name = "OpenRouter"
+aliases = []
+api_key_env_vars = ["OPENROUTER_API_KEY"]
+display_api_key_env_var = "OPENROUTER_API_KEY"
+key_url = "https://openrouter.ai/keys"
+scan_env = true
+
+[providers.integration]
+name = "OpenRouter"
+description = "200+ models, 1 API key"
+
+[providers.onboarding]
+tier = "recommended"
+label = "OpenRouter — 200+ models, 1 API key (recommended)"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "anthropic/claude-sonnet-4.6"
+label = "Claude Sonnet 4.6 (balanced, recommended)"
+
+[[providers.onboarding.models]]
+model = "anthropic/claude-opus-4.6"
+label = "Claude Opus 4.6 (most capable)"
+
+[[providers.onboarding.models]]
+model = "openai/gpt-5.4"
+label = "GPT-5.4 (OpenAI flagship)"
+
+[[providers.onboarding.models]]
+model = "openai/gpt-5-mini"
+label = "GPT-5 Mini (fast, cheap)"
+
+[[providers.onboarding.models]]
+model = "google/gemini-3.1-pro-preview"
+label = "Gemini 3.1 Pro Preview (latest Google)"
+
+[[providers.onboarding.models]]
+model = "moonshotai/kimi-k2.5"
+label = "Kimi K2.5 (long-context, coding)"
+
+[[providers.onboarding.models]]
+model = "deepseek/deepseek-v3.2"
+label = "DeepSeek V3.2 (affordable)"
+
+[[providers]]
+id = "venice"
+display_name = "Venice"
+aliases = []
+api_key_env_vars = ["VENICE_API_KEY"]
+display_api_key_env_var = "VENICE_API_KEY"
+key_url = "https://venice.ai/settings/api"
+
+[providers.compatible]
+display_name = "Venice"
+base_url = "https://api.venice.ai"
+
+[providers.integration]
+name = "Venice"
+description = "Privacy-first inference (Llama, Opus)"
+
+[providers.onboarding]
+tier = "recommended"
+label = "Venice AI — privacy-first (Llama, Opus)"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "deepseek-v3.2"
+label = "DeepSeek V3.2 (recommended)"
+
+[[providers.onboarding.models]]
+model = "claude-opus-4-6"
+label = "Claude Opus 4.6 (most capable)"
+
+[[providers.onboarding.models]]
+model = "kimi-k2-5"
+label = "Kimi K2.5 (long-context)"
+
+[[providers]]
+id = "anthropic"
+display_name = "Anthropic"
+aliases = []
+api_key_env_vars = ["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"]
+display_api_key_env_var = "ANTHROPIC_API_KEY"
+key_url = "https://console.anthropic.com/settings/keys"
+scan_env = true
+
+[providers.integration]
+name = "Anthropic"
+description = "Claude Sonnet 4, Opus 4.1, Haiku 3.5"
+
+[providers.onboarding]
+tier = "recommended"
+label = "Anthropic — Claude Sonnet & Opus (direct)"
+auth_method = "api_key_or_setup_token"
+
+[[providers.onboarding.models]]
+model = "claude-sonnet-4-20250514"
+label = "Claude Sonnet 4 (balanced, recommended)"
+
+[[providers.onboarding.models]]
+model = "claude-opus-4-1-20250805"
+label = "Claude Opus 4.1 (most capable)"
+
+[[providers.onboarding.models]]
+model = "claude-3-5-haiku-20251026"
+label = "Claude Haiku 3.5 (fastest, cheapest)"
+
+[[providers]]
+id = "openai"
+display_name = "OpenAI"
+aliases = ["openai-codex"]
+api_key_env_vars = ["OPENAI_API_KEY"]
+display_api_key_env_var = "OPENAI_API_KEY"
+key_url = "https://platform.openai.com/api-keys"
+scan_env = true
+
+[providers.integration]
+name = "OpenAI"
+description = "GPT-5.4, GPT-5 Mini, Codex"
+
+[providers.onboarding]
+tier = "recommended"
+label = "OpenAI — GPT-5.4, GPT-5 Mini, Codex"
+auth_method = "api_key_or_oauth"
+
+[[providers.onboarding.models]]
+model = "gpt-5.4"
+label = "GPT-5.4 (flagship)"
+
+[[providers.onboarding.models]]
+model = "gpt-5-mini"
+label = "GPT-5 Mini (fast, cheap)"
+
+[[providers.onboarding.models]]
+model = "gpt-5.3-codex"
+label = "GPT-5.3 Codex (most capable Codex)"
+
+[[providers.onboarding.models]]
+model = "gpt-5.2-codex"
+label = "GPT-5.2 Codex (long-horizon coding)"
+
+[[providers]]
+id = "deepseek"
+display_name = "DeepSeek"
+aliases = []
+api_key_env_vars = ["DEEPSEEK_API_KEY"]
+display_api_key_env_var = "DEEPSEEK_API_KEY"
+key_url = "https://platform.deepseek.com/api_keys"
+scan_env = true
+
+[providers.compatible]
+display_name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+
+[providers.integration]
+name = "DeepSeek"
+description = "DeepSeek V3 & R1"
+
+[providers.onboarding]
+tier = "recommended"
+label = "DeepSeek — V3 & R1 (affordable)"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "deepseek-chat"
+label = "DeepSeek Chat (V3.2, recommended)"
+
+[[providers.onboarding.models]]
+model = "deepseek-reasoner"
+label = "DeepSeek Reasoner (V3.2 thinking)"
+
+[[providers]]
+id = "mistral"
+display_name = "Mistral"
+aliases = []
+api_key_env_vars = ["MISTRAL_API_KEY"]
+display_api_key_env_var = "MISTRAL_API_KEY"
+key_url = "https://console.mistral.ai/api-keys"
+scan_env = true
+
+[providers.compatible]
+display_name = "Mistral"
+base_url = "https://api.mistral.ai"
+
+[providers.integration]
+name = "Mistral"
+description = "Mistral Medium 3.1, Small 3.2, Codestral"
+
+[providers.onboarding]
+tier = "recommended"
+label = "Mistral — Medium 3.1, Small 3.2, Codestral"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "mistral-medium-2508"
+label = "Mistral Medium 3.1 (flagship)"
+
+[[providers.onboarding.models]]
+model = "codestral-2508"
+label = "Codestral (code-focused)"
+
+[[providers.onboarding.models]]
+model = "mistral-small-2506"
+label = "Mistral Small 3.2 (fast, cheap)"
+
+[[providers]]
+id = "xai"
+display_name = "xAI"
+aliases = ["grok"]
+api_key_env_vars = ["XAI_API_KEY"]
+display_api_key_env_var = "XAI_API_KEY"
+key_url = "https://console.x.ai"
+scan_env = true
+
+[providers.compatible]
+display_name = "xAI"
+base_url = "https://api.x.ai"
+
+[providers.integration]
+name = "xAI"
+description = "Grok 4.1 & Grok Code Fast"
+
+[providers.onboarding]
+tier = "recommended"
+label = "xAI — Grok 4.1 & Grok Code Fast"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "grok-4-1-fast-reasoning"
+label = "Grok 4.1 Fast Reasoning (flagship)"
+
+[[providers.onboarding.models]]
+model = "grok-code-fast-1"
+label = "Grok Code Fast 1 (coding)"
+
+[[providers.onboarding.models]]
+model = "grok-3-mini"
+label = "Grok 3 Mini (fast, cheap)"
+
+[[providers]]
+id = "perplexity"
+display_name = "Perplexity"
+aliases = []
+api_key_env_vars = ["PERPLEXITY_API_KEY"]
+display_api_key_env_var = "PERPLEXITY_API_KEY"
+key_url = "https://www.perplexity.ai/settings/api"
+
+[providers.compatible]
+display_name = "Perplexity"
+base_url = "https://api.perplexity.ai"
+
+[providers.integration]
+name = "Perplexity"
+description = "Search-augmented AI"
+
+[providers.onboarding]
+tier = "recommended"
+label = "Perplexity — search-augmented AI"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "sonar-pro"
+label = "Sonar Pro (search + reasoning)"
+
+[[providers.onboarding.models]]
+model = "sonar-reasoning-pro"
+label = "Sonar Reasoning Pro (deliberate reasoning)"
+
+[[providers.onboarding.models]]
+model = "sonar-deep-research"
+label = "Sonar Deep Research (expert research)"
+
+[[providers]]
+id = "gemini"
+display_name = "Google Gemini"
+aliases = ["google", "google-gemini"]
+api_key_env_vars = ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
+display_api_key_env_var = "GEMINI_API_KEY"
+key_url = "https://aistudio.google.com/app/apikey"
+scan_env = true
+
+[providers.integration]
+name = "Google"
+description = "Gemini 3 preview + 2.5 stable"
+
+[providers.onboarding]
+tier = "recommended"
+label = "Google Gemini — Gemini 3 preview + 2.5 stable"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "gemini-3-flash-preview"
+label = "Gemini 3 Flash Preview (balanced latest)"
+
+[[providers.onboarding.models]]
+model = "gemini-3-pro-preview"
+label = "Gemini 3 Pro Preview (most capable)"
+
+[[providers.onboarding.models]]
+model = "gemini-2.5-flash"
+label = "Gemini 2.5 Flash (recommended stable)"
+
+[[providers]]
+id = "gemini-vertex"
+display_name = "Google Vertex AI Gemini"
+aliases = ["vertex-gemini"]
+api_key_env_vars = ["GOOGLE_API_KEY", "GEMINI_API_KEY"]
+display_api_key_env_var = "GOOGLE_API_KEY"
+key_url = "https://console.cloud.google.com/apis/credentials"
+
+[providers.integration]
+name = "Google Vertex AI"
+description = "Gemini via Vertex AI (ADC or API key)"
+
+[providers.onboarding]
+tier = "gateway"
+label = "Google Vertex AI — Gemini via ADC or API key"
+auth_method = "api_key_or_application_default_credentials"
+
+[[providers.onboarding.models]]
+model = "gemini-2.5-flash"
+label = "Gemini 2.5 Flash (recommended stable)"
+
+[[providers.onboarding.models]]
+model = "gemini-2.5-pro"
+label = "Gemini 2.5 Pro"
+
+[[providers.onboarding.models]]
+model = "gemini-3-flash"
+label = "Gemini 3 Flash"
+
+[[providers]]
+id = "groq"
+display_name = "Groq"
+aliases = []
+api_key_env_vars = ["GROQ_API_KEY"]
+display_api_key_env_var = "GROQ_API_KEY"
+key_url = "https://console.groq.com/keys"
+scan_env = true
+
+[providers.compatible]
+display_name = "Groq"
+base_url = "https://api.groq.com/openai"
+
+[providers.integration]
+name = "Groq"
+description = "Ultra-fast LPU inference"
+
+[providers.onboarding]
+tier = "fast"
+label = "Groq — ultra-fast LPU inference"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "openai/gpt-oss-120b"
+label = "GPT-OSS 120B (featured)"
+
+[[providers.onboarding.models]]
+model = "llama-3.3-70b-versatile"
+label = "Llama 3.3 70B (stable)"
+
+[[providers.onboarding.models]]
+model = "llama-3.1-8b-instant"
+label = "Llama 3.1 8B (instant)"
+
+[[providers]]
+id = "fireworks"
+display_name = "Fireworks AI"
+aliases = ["fireworks-ai"]
+api_key_env_vars = ["FIREWORKS_API_KEY"]
+display_api_key_env_var = "FIREWORKS_API_KEY"
+key_url = "https://fireworks.ai/account/api-keys"
+
+[providers.compatible]
+display_name = "Fireworks AI"
+base_url = "https://api.fireworks.ai/inference"
+
+[providers.integration]
+name = "Fireworks AI"
+description = "Fast open-source inference"
+
+[providers.onboarding]
+tier = "fast"
+label = "Fireworks AI — fast open-source inference"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "accounts/fireworks/models/deepseek-v3p2"
+label = "DeepSeek V3.2 (recommended)"
+
+[[providers.onboarding.models]]
+model = "accounts/fireworks/models/qwen3-235b-a22b"
+label = "Qwen3 235B (code-optimized)"
+
+[[providers.onboarding.models]]
+model = "accounts/fireworks/models/llama-v3p3-70b-instruct"
+label = "Llama 3.3 70B"
+
+[[providers]]
+id = "together"
+display_name = "Together AI"
+aliases = ["together-ai"]
+api_key_env_vars = ["TOGETHER_API_KEY"]
+display_api_key_env_var = "TOGETHER_API_KEY"
+key_url = "https://api.together.xyz/settings/api-keys"
+
+[providers.compatible]
+display_name = "Together AI"
+base_url = "https://api.together.xyz"
+
+[providers.integration]
+name = "Together AI"
+description = "Open-source model hosting"
+
+[providers.onboarding]
+tier = "fast"
+label = "Together AI — open-source model hosting"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+label = "Llama 3.3 70B Turbo (recommended)"
+
+[[providers.onboarding.models]]
+model = "deepseek-ai/DeepSeek-V3.1"
+label = "DeepSeek V3.1"
+
+[[providers.onboarding.models]]
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+label = "Llama 3.1 8B Turbo (fast)"
+
+[[providers]]
+id = "vercel"
+display_name = "Vercel AI"
+aliases = ["vercel-ai"]
+api_key_env_vars = ["VERCEL_API_KEY"]
+display_api_key_env_var = "VERCEL_API_KEY"
+key_url = "https://vercel.com/account/tokens"
+
+[providers.compatible]
+display_name = "Vercel AI Gateway"
+base_url = "https://api.vercel.ai"
+
+[providers.integration]
+name = "Vercel AI"
+description = "Vercel AI Gateway"
+
+[providers.onboarding]
+tier = "gateway"
+label = "Vercel AI Gateway"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "gpt-5.4"
+label = "GPT-5.4 (gateway passthrough)"
+
+[[providers]]
+id = "cloudflare"
+display_name = "Cloudflare AI"
+aliases = ["cloudflare-ai"]
+api_key_env_vars = ["CLOUDFLARE_API_KEY"]
+display_api_key_env_var = "CLOUDFLARE_API_KEY"
+key_url = "https://dash.cloudflare.com/profile/api-tokens"
+
+[providers.compatible]
+display_name = "Cloudflare AI Gateway"
+base_url = "https://gateway.ai.cloudflare.com/v1"
+
+[providers.integration]
+name = "Cloudflare AI"
+description = "Cloudflare AI Gateway"
+
+[providers.onboarding]
+tier = "gateway"
+label = "Cloudflare AI Gateway"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "gpt-5.4"
+label = "GPT-5.4 (gateway passthrough)"
+
+[[providers]]
+id = "bedrock"
+display_name = "Amazon Bedrock"
+aliases = ["aws-bedrock"]
+api_key_env_vars = ["AWS_ACCESS_KEY_ID"]
+display_api_key_env_var = "AWS_ACCESS_KEY_ID"
+key_url = "https://console.aws.amazon.com/iam"
+
+[providers.compatible]
+display_name = "Amazon Bedrock"
+base_url = "https://bedrock-runtime.us-east-1.amazonaws.com"
+
+[[providers]]
+id = "copilot"
+display_name = "GitHub Copilot"
+aliases = ["github-copilot"]
+api_key_env_vars = ["GITHUB_TOKEN"]
+display_api_key_env_var = "GITHUB_TOKEN"
+key_url = "https://github.com/settings/tokens"
+
+[providers.compatible]
+display_name = "GitHub Copilot"
+base_url = "https://api.githubcopilot.com"
+
+[providers.onboarding]
+tier = "gateway"
+label = "GitHub Copilot — OAuth-style developer models"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "gpt-5"
+label = "GPT-5 via Copilot (recommended)"
+
+[[providers.onboarding.models]]
+model = "gpt-5-mini"
+label = "GPT-5 Mini via Copilot"
+
+[[providers.onboarding.models]]
+model = "claude-3.7-sonnet"
+label = "Claude Sonnet via Copilot"
+
+[[providers]]
+id = "moonshot"
+display_name = "Moonshot"
+aliases = ["kimi"]
+api_key_env_vars = ["MOONSHOT_API_KEY"]
+display_api_key_env_var = "MOONSHOT_API_KEY"
+key_url = "https://platform.moonshot.cn/console/api-keys"
+
+[providers.compatible]
+display_name = "Moonshot"
+base_url = "https://api.moonshot.cn"
+
+[providers.integration]
+name = "Moonshot"
+description = "Kimi K2 & K2 Thinking"
+
+[providers.onboarding]
+tier = "specialized"
+label = "Moonshot — Kimi K2 & K2 Thinking"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "kimi-k2-0905"
+label = "Kimi K2 0905 (flagship)"
+
+[[providers.onboarding.models]]
+model = "kimi-k2-thinking"
+label = "Kimi K2 Thinking (reasoning)"
+
+[[providers.onboarding.models]]
+model = "kimi-k2-0711-preview"
+label = "Kimi K2 0711 Preview"
+
+[[providers]]
+id = "glm"
+display_name = "GLM"
+aliases = ["zhipu"]
+api_key_env_vars = ["GLM_API_KEY"]
+display_api_key_env_var = "GLM_API_KEY"
+
+[providers.compatible]
+display_name = "GLM"
+base_url = "https://open.bigmodel.cn/api/paas"
+
+[providers.integration]
+name = "GLM"
+description = "GLM-5 / Zhipu models"
+
+[providers.onboarding]
+tier = "specialized"
+label = "GLM — GLM-5 / Zhipu models"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "glm-5"
+label = "GLM-5 (flagship)"
+
+[[providers.onboarding.models]]
+model = "glm-4.7"
+label = "GLM-4.7 (stable)"
+
+[[providers.onboarding.models]]
+model = "glm-4.7-flash"
+label = "GLM-4.7 Flash (fast)"
+
+[[providers]]
+id = "minimax"
+display_name = "MiniMax"
+aliases = []
+api_key_env_vars = ["MINIMAX_API_KEY"]
+display_api_key_env_var = "MINIMAX_API_KEY"
+key_url = "https://www.minimaxi.com/user-center/basic-information"
+
+[providers.integration]
+name = "MiniMax"
+description = "MiniMax M2.7 / M2.x via Anthropic-compatible API"
+
+[providers.onboarding]
+tier = "specialized"
+label = "MiniMax — MiniMax M2.7 / M2.x (Anthropic-compatible)"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "MiniMax-M2.7"
+label = "MiniMax M2.7 (flagship)"
+
+[[providers.onboarding.models]]
+model = "MiniMax-M2.7-highspeed"
+label = "MiniMax M2.7 Highspeed"
+
+[[providers.onboarding.models]]
+model = "MiniMax-M2.5"
+label = "MiniMax M2.5"
+
+[[providers.onboarding.models]]
+model = "MiniMax-M2"
+label = "MiniMax M2"
+
+[[providers]]
+id = "qianfan"
+display_name = "Qianfan"
+aliases = ["baidu"]
+api_key_env_vars = ["QIANFAN_API_KEY"]
+display_api_key_env_var = "QIANFAN_API_KEY"
+
+[providers.compatible]
+display_name = "Qianfan"
+base_url = "https://aip.baidubce.com"
+
+[providers.integration]
+name = "Qianfan"
+description = "Baidu AI models"
+
+[providers.onboarding]
+tier = "specialized"
+label = "Qianfan — Baidu AI models"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "ernie-4.5-turbo"
+label = "ERNIE 4.5 Turbo"
+
+[[providers]]
+id = "zai"
+display_name = "Z.AI"
+aliases = ["z.ai"]
+api_key_env_vars = ["ZAI_API_KEY"]
+display_api_key_env_var = "ZAI_API_KEY"
+
+[providers.compatible]
+display_name = "Z.AI"
+base_url = "https://api.z.ai/api/coding/paas/v4"
+
+[providers.integration]
+name = "Z.AI"
+description = "Z.AI inference"
+
+[providers.onboarding]
+tier = "specialized"
+label = "Z.AI — Z.AI inference"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "glm-4.5"
+label = "Z.AI GLM 4.5"
+
+[[providers]]
+id = "synthetic"
+display_name = "Synthetic"
+aliases = []
+api_key_env_vars = ["SYNTHETIC_API_KEY"]
+display_api_key_env_var = "SYNTHETIC_API_KEY"
+
+[providers.compatible]
+display_name = "Synthetic"
+base_url = "https://api.synthetic.com"
+
+[providers.integration]
+name = "Synthetic"
+description = "Synthetic AI models"
+
+[providers.onboarding]
+tier = "specialized"
+label = "Synthetic — Synthetic AI models"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "synthetic/default"
+label = "Synthetic default"
+
+[[providers]]
+id = "opencode"
+display_name = "OpenCode Zen"
+aliases = ["opencode-zen"]
+api_key_env_vars = ["OPENCODE_API_KEY"]
+display_api_key_env_var = "OPENCODE_API_KEY"
+
+[providers.compatible]
+display_name = "OpenCode Zen"
+base_url = "https://api.opencode.ai"
+
+[providers.integration]
+name = "OpenCode Zen"
+description = "Code-focused AI models"
+
+[providers.onboarding]
+tier = "specialized"
+label = "OpenCode Zen — code-focused AI"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "opencode/coder"
+label = "OpenCode Coder"
+
+[[providers]]
+id = "cohere"
+display_name = "Cohere"
+aliases = []
+api_key_env_vars = ["COHERE_API_KEY"]
+display_api_key_env_var = "COHERE_API_KEY"
+key_url = "https://dashboard.cohere.com/api-keys"
+
+[providers.compatible]
+display_name = "Cohere"
+base_url = "https://api.cohere.com/compatibility"
+
+[providers.integration]
+name = "Cohere"
+description = "Command A / Reasoning"
+
+[providers.onboarding]
+tier = "specialized"
+label = "Cohere — Command A / Reasoning"
+auth_method = "api_key_only"
+
+[[providers.onboarding.models]]
+model = "command-a-03-2025"
+label = "Command A (flagship)"
+
+[[providers.onboarding.models]]
+model = "command-a-reasoning-08-2025"
+label = "Command A Reasoning (latest reasoning)"
+
+[[providers.onboarding.models]]
+model = "command-r7b-12-2024"
+label = "Command R 7B (fast)"
+
+[[providers]]
+id = "ollama"
+display_name = "Ollama"
+aliases = []
+api_key_env_vars = []
+display_api_key_env_var = "ASTEREL_API_KEY"
+scan_env = true
+
+[providers.integration]
+name = "Ollama"
+description = "Local models (Llama, etc.)"
+
+[providers.onboarding]
+tier = "local"
+label = "Ollama — local models (Llama, Mistral, Phi)"
+auth_method = "no_key_required"
+
+[[providers.onboarding.models]]
+model = "llama3.2"
+label = "Llama 3.2 (small, recommended local)"
+
+[[providers.onboarding.models]]
+model = "llama3.3"
+label = "Llama 3.3 70B (best quality local)"
+
+[[providers.onboarding.models]]
+model = "phi4"
+label = "Phi-4 14B (Microsoft, strong reasoning)"
+
+[[providers.onboarding.models]]
+model = "qwen3"
+label = "Qwen3 (multilingual, hybrid thinking)"

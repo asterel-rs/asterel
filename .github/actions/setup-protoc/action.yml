@@ -1,0 +1,36 @@
+name: Setup protoc
+description: Download protoc compiler and add it to PATH without a JavaScript action runtime.
+
+inputs:
+  version:
+    description: Protobuf/protoc release version to install.
+    required: false
+    default: "29.3"
+
+outputs:
+  version:
+    description: Installed protoc version.
+    value: ${{ steps.install.outputs.version }}
+  path:
+    description: Directory added to PATH.
+    value: ${{ steps.install.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - id: install
+      name: Install protoc
+      shell: bash
+      env:
+        PROTOC_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if command -v python3 >/dev/null 2>&1; then
+          PYTHON=python3
+        elif command -v python >/dev/null 2>&1; then
+          PYTHON=python
+        else
+          echo "Python is required to install protoc" >&2
+          exit 1
+        fi
+        "$PYTHON" "$GITHUB_ACTION_PATH/download_protoc.py"

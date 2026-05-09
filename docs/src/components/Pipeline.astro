@@ -1,0 +1,228 @@
+---
+type StepKind = 'standard' | 'gate';
+
+export interface PipelineStep {
+  title: string;
+  detail?: string;
+  kind?: StepKind;
+}
+
+interface Props {
+  label: string;
+  origin?: string;
+  originLabel?: string;
+  steps: PipelineStep[];
+  loop?: boolean;
+  loopLabel?: string;
+}
+
+const {
+  label,
+  origin,
+  originLabel = 'Input',
+  steps,
+  loop = false,
+  loopLabel,
+} = Astro.props;
+---
+
+<figure class="pipeline" role="group" aria-label={label}>
+  {origin && (
+    <p class="pipeline__origin">
+      <span class="pipeline__origin-label">{originLabel}</span>
+      <span class="pipeline__origin-value">{origin}</span>
+    </p>
+  )}
+  <ol class="pipeline__steps">
+    {steps.map((step, i) => (
+      <li class={`pipeline__step pipeline__step--${step.kind ?? 'standard'}`}>
+        <span class="pipeline__num" aria-hidden="true">
+          {step.kind === 'gate' ? '\u25C6' : i + 1}
+        </span>
+        <div class="pipeline__body">
+          <p class="pipeline__title">
+            {step.kind === 'gate' && (
+              <span class="pipeline__sr-only">Critical step:</span>
+            )}
+            {step.title}
+          </p>
+          {step.detail && <p class="pipeline__detail">{step.detail}</p>}
+        </div>
+      </li>
+    ))}
+  </ol>
+  {loop && loopLabel && (
+    <p class="pipeline__loop" aria-label={loopLabel}>
+      <span class="pipeline__loop-glyph" aria-hidden="true">↺</span>
+      <span>{loopLabel}</span>
+    </p>
+  )}
+</figure>
+
+<style>
+  .pipeline {
+    margin: 2rem 0;
+    padding: 0;
+    max-width: 60ch;
+  }
+
+  .pipeline__origin {
+    margin: 0 0 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.7rem;
+    align-items: baseline;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px dashed var(--ai-line);
+    font-size: 0.94em;
+  }
+
+  .pipeline__origin-label {
+    font-family: var(--ai-font-heading);
+    font-size: 0.74em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ai-muted);
+    font-weight: 700;
+  }
+
+  .pipeline__origin-value {
+    color: var(--ai-text);
+  }
+
+  .pipeline__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+  }
+
+  .pipeline__steps::before {
+    content: '';
+    position: absolute;
+    top: 0.85rem;
+    bottom: 0.85rem;
+    left: calc(0.92rem - 0.5px);
+    width: 1px;
+    background: var(--ai-line-strong);
+    opacity: 0.5;
+  }
+
+  .pipeline__step {
+    display: grid;
+    grid-template-columns: 1.85rem 1fr;
+    align-items: start;
+    gap: 0.85rem;
+    padding-block: 0.4rem 1.1rem;
+  }
+
+  .pipeline__step:last-child {
+    padding-bottom: 0;
+  }
+
+  .pipeline__num {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    background: var(--ai-paper);
+    border: 1px solid var(--ai-line-strong);
+    border-radius: 50%;
+    color: var(--ai-muted);
+    font-family: var(--ai-font-heading);
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-variant-numeric: lining-nums;
+    line-height: 1;
+  }
+
+  .pipeline__step--gate .pipeline__num {
+    background: var(--ai-accent-strong);
+    border-color: var(--ai-accent-strong);
+    border-radius: 0;
+    color: var(--ai-paper);
+    font-size: 0.85rem;
+    box-shadow: 0 0 0 4px var(--ai-paper);
+  }
+
+  .pipeline__body {
+    padding-top: 0.18rem;
+  }
+
+  .pipeline__title {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.02em;
+    color: var(--sl-color-gray-1);
+    line-height: 1.4;
+  }
+
+  .pipeline__step--gate .pipeline__title {
+    color: var(--ai-accent-strong);
+    font-weight: 700;
+  }
+
+  .pipeline__detail {
+    margin: 0.3rem 0 0;
+    color: var(--ai-muted);
+    font-size: 0.93em;
+    line-height: 1.55;
+  }
+
+  .pipeline__loop {
+    margin: 1rem 0 0 2.7rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--ai-line);
+    font-size: 0.88em;
+    color: var(--ai-muted);
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+
+  .pipeline__loop-glyph {
+    font-size: 1.2em;
+    color: var(--ai-accent);
+    line-height: 1;
+  }
+
+  .pipeline__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 36rem) {
+    .pipeline__step {
+      grid-template-columns: 1.6rem 1fr;
+      gap: 0.7rem;
+    }
+
+    .pipeline__num {
+      width: 1.6rem;
+      height: 1.6rem;
+      font-size: 0.85rem;
+    }
+
+    .pipeline__step--gate .pipeline__num {
+      font-size: 0.78rem;
+    }
+
+    .pipeline__steps::before {
+      left: calc(0.8rem - 0.5px);
+    }
+
+    .pipeline__loop {
+      margin-left: 2.3rem;
+    }
+  }
+</style>

@@ -1,0 +1,1604 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Asterel Admin API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/admin/v1/openapi.json": {
+      "get": {
+        "operationId": "adminOpenApi",
+        "summary": "Returns the admin API contract",
+        "responses": {
+          "200": { "description": "Admin OpenAPI document" }
+        }
+      }
+    },
+    "/admin/v1/runtime": {
+      "get": {
+        "operationId": "adminRuntime",
+        "summary": "Runtime status snapshot",
+        "responses": {
+          "200": {
+            "description": "Runtime status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RuntimeStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/usage": {
+      "get": {
+        "operationId": "adminUsage",
+        "summary": "Usage summary",
+        "responses": {
+          "200": {
+            "description": "Usage summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/mood": {
+      "get": {
+        "operationId": "adminMood",
+        "summary": "Current companion mood",
+        "responses": {
+          "200": {
+            "description": "Mood summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MoodResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/activity": {
+      "get": {
+        "operationId": "adminActivity",
+        "summary": "Recent operator activity timeline",
+        "responses": {
+          "200": {
+            "description": "Activity timeline",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActivityTimelineResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/agents": {
+      "get": {
+        "operationId": "adminAgents",
+        "summary": "Active agent inventory",
+        "responses": {
+          "200": {
+            "description": "Agent inventory",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/gateway/restart": {
+      "post": {
+        "operationId": "adminGatewayRestart",
+        "summary": "Request a gateway restart",
+        "responses": {
+          "200": {
+            "description": "Restart accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/sessions": {
+      "get": {
+        "operationId": "adminSessions",
+        "summary": "List sessions",
+        "responses": {
+          "200": {
+            "description": "Session list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "adminSessionCreate",
+        "summary": "Create session",
+        "responses": {
+          "200": {
+            "description": "Created session",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Session" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/sessions/{session_id}": {
+      "get": {
+        "operationId": "adminSession",
+        "summary": "Get session",
+        "responses": {
+          "200": {
+            "description": "Session detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Session" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "adminSessionDelete",
+        "summary": "Delete session",
+        "responses": {
+          "204": { "description": "Deleted" }
+        }
+      }
+    },
+    "/admin/v1/sessions/{session_id}/messages": {
+      "get": {
+        "operationId": "adminSessionMessages",
+        "summary": "List session messages",
+        "responses": {
+          "200": {
+            "description": "Session messages",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionMessageListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "adminSessionMessageCreate",
+        "summary": "Append session message",
+        "responses": {
+          "200": {
+            "description": "Created message",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Message" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/governance": {
+      "get": {
+        "operationId": "adminGovernance",
+        "summary": "Governance summary",
+        "responses": {
+          "200": {
+            "description": "Governance summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GovernanceSummary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/auth/profiles": {
+      "get": {
+        "operationId": "adminAuthProfiles",
+        "summary": "List auth profiles",
+        "responses": {
+          "200": {
+            "description": "Auth profiles",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthProfilesResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/auth/profiles/{id}": {
+      "patch": {
+        "operationId": "adminAuthProfilePatch",
+        "summary": "Patch auth profile",
+        "responses": {
+          "200": {
+            "description": "Patched auth profile",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/providers": {
+      "get": {
+        "operationId": "adminProviders",
+        "summary": "Provider settings",
+        "responses": {
+          "200": {
+            "description": "Provider settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProvidersResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "adminProvidersPatch",
+        "summary": "Patch provider settings",
+        "responses": {
+          "200": {
+            "description": "Patched provider settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/providers/{id}": {
+      "patch": {
+        "operationId": "adminProviderPatch",
+        "summary": "Patch provider",
+        "responses": {
+          "200": {
+            "description": "Patched provider",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/settings": {
+      "get": {
+        "operationId": "adminSettings",
+        "summary": "Settings snapshot",
+        "responses": {
+          "200": {
+            "description": "Settings snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SettingsResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "adminSettingsPatch",
+        "summary": "Patch settings",
+        "responses": {
+          "200": {
+            "description": "Patched settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/channels": {
+      "get": {
+        "operationId": "adminChannels",
+        "summary": "List channels",
+        "responses": {
+          "200": {
+            "description": "Channels list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChannelsResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "adminChannelCreate",
+        "summary": "Create channel",
+        "responses": {
+          "200": { "description": "Created channel" }
+        }
+      }
+    },
+    "/admin/v1/channels/{channel_id}": {
+      "patch": {
+        "operationId": "adminChannelPatch",
+        "summary": "Patch channel",
+        "responses": {
+          "200": {
+            "description": "Patched channel",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/channels/{channel_id}/actions": {
+      "post": {
+        "operationId": "adminChannelAction",
+        "summary": "Execute channel action",
+        "responses": {
+          "200": {
+            "description": "Channel action result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/skills": {
+      "get": {
+        "operationId": "adminSkills",
+        "summary": "List installed skills",
+        "responses": {
+          "200": {
+            "description": "Skills list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SkillsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/skills/install": {
+      "post": {
+        "operationId": "adminSkillInstall",
+        "summary": "Install skill",
+        "responses": {
+          "200": {
+            "description": "Skill install result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/skills/{skill_id}": {
+      "patch": {
+        "operationId": "adminSkillPatch",
+        "summary": "Patch skill",
+        "responses": {
+          "200": {
+            "description": "Patched skill",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "adminSkillDelete",
+        "summary": "Delete skill",
+        "responses": {
+          "200": {
+            "description": "Deleted skill",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/cron/jobs": {
+      "get": {
+        "operationId": "adminCronJobs",
+        "summary": "List cron jobs",
+        "responses": {
+          "200": {
+            "description": "Cron jobs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CronJobListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "adminCronJobCreate",
+        "summary": "Create cron job",
+        "responses": {
+          "200": {
+            "description": "Created cron job",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CronJob" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/cron/jobs/{job_id}": {
+      "patch": {
+        "operationId": "adminCronJobPatch",
+        "summary": "Patch cron job",
+        "responses": {
+          "200": {
+            "description": "Patched cron job",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CronJob" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "adminCronJobDelete",
+        "summary": "Delete cron job",
+        "responses": {
+          "200": {
+            "description": "Deleted cron job",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/cron/jobs/{job_id}/run": {
+      "post": {
+        "operationId": "adminCronJobRun",
+        "summary": "Run cron job immediately",
+        "responses": {
+          "200": {
+            "description": "Run accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/entities": {
+      "get": {
+        "operationId": "adminMemoryEntities",
+        "summary": "List memory entities",
+        "responses": {
+          "200": {
+            "description": "Memory entities",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemoryEntitiesResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/consolidation": {
+      "get": {
+        "operationId": "adminMemoryConsolidation",
+        "summary": "List memory consolidation worker statuses",
+        "responses": {
+          "200": {
+            "description": "Memory consolidation worker statuses",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemoryConsolidationStatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/exposure": {
+      "get": {
+        "operationId": "adminMemoryExposure",
+        "summary": "Get memory grounding exposure diagnostics",
+        "responses": {
+          "200": {
+            "description": "Memory grounding exposure diagnostics",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemoryExposureStatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/self-amendments": {
+      "get": {
+        "operationId": "adminMemorySelfAmendments",
+        "summary": "List dry-run self-amendment candidates",
+        "responses": {
+          "200": {
+            "description": "Dry-run self-amendment candidates",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SelfAmendmentReviewResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/self-amendments/approve": {
+      "post": {
+        "operationId": "adminMemorySelfAmendmentApprove",
+        "summary": "Persist a reviewed self-amendment candidate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SelfAmendmentApproveRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Self-amendment candidate persisted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SelfAmendmentApprovalResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Approval request is invalid",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "403": {
+            "description": "Approval is outside the caller tenant scope",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Candidate is not available for review",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "500": {
+            "description": "Approval persistence failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/entities/{entity_id}/slots": {
+      "get": {
+        "operationId": "adminMemoryEntitySlots",
+        "summary": "List memory slots for entity",
+        "responses": {
+          "200": {
+            "description": "Memory slots",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemorySlotsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/correct": {
+      "post": {
+        "operationId": "adminMemoryCorrect",
+        "summary": "Correct memory slot",
+        "responses": {
+          "200": {
+            "description": "Memory corrected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/forget": {
+      "post": {
+        "operationId": "adminMemoryForget",
+        "summary": "Forget memory slot",
+        "responses": {
+          "200": {
+            "description": "Memory forgotten",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/memory/checkpoint": {
+      "post": {
+        "operationId": "adminMemoryCheckpoint",
+        "summary": "Create memory checkpoint",
+        "responses": {
+          "200": {
+            "description": "Checkpoint created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions": {
+      "get": {
+        "operationId": "adminCompanions",
+        "summary": "List companion scopes",
+        "responses": {
+          "200": {
+            "description": "Companion scopes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CompanionScopeListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "adminCompanionsPatch",
+        "summary": "Patch companion config",
+        "responses": {
+          "200": {
+            "description": "Patched companion config",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/captions": {
+      "get": {
+        "operationId": "adminCompanionCaptions",
+        "summary": "List companion captions",
+        "responses": {
+          "200": {
+            "description": "Companion captions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CompanionCaptionListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/widgets": {
+      "get": {
+        "operationId": "adminCompanionWidgets",
+        "summary": "List companion widgets",
+        "responses": {
+          "200": {
+            "description": "Companion widgets",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CompanionWidgetListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/windows": {
+      "get": {
+        "operationId": "adminCompanionWindows",
+        "summary": "List companion request windows",
+        "responses": {
+          "200": {
+            "description": "Companion windows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CompanionWindowListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/windows/{window_id}/confirm": {
+      "post": {
+        "operationId": "adminCompanionWindowConfirm",
+        "summary": "Confirm companion request window",
+        "responses": {
+          "200": {
+            "description": "Window confirmed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/windows/{window_id}/cancel": {
+      "post": {
+        "operationId": "adminCompanionWindowCancel",
+        "summary": "Cancel companion request window",
+        "responses": {
+          "200": {
+            "description": "Window canceled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/companions/{scope}/ingress": {
+      "post": {
+        "operationId": "adminCompanionIngress",
+        "summary": "Post companion ingress payload",
+        "responses": {
+          "200": {
+            "description": "Ingress accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/tenants": {
+      "get": {
+        "operationId": "adminTenants",
+        "summary": "Tenant bindings and discovered workspaces",
+        "responses": {
+          "200": {
+            "description": "Tenant bindings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TenantsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/tenant-context": {
+      "get": {
+        "operationId": "adminTenantContext",
+        "summary": "Current tenant context",
+        "responses": {
+          "200": {
+            "description": "Tenant context",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TenantContextResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "adminTenantContextSet",
+        "summary": "Set active tenant context",
+        "responses": {
+          "200": {
+            "description": "Tenant context updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TenantContextUpdateResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/uploads": {
+      "post": {
+        "operationId": "adminUpload",
+        "summary": "Upload operator asset",
+        "responses": {
+          "200": { "description": "Upload result" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProblemDetails": {
+        "type": "object",
+        "required": ["type", "title", "status", "detail", "code"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "code": { "type": "string" }
+        }
+      },
+      "RuntimeStatus": {
+        "type": "object",
+        "required": ["status", "version", "model", "db", "gateway", "capabilities"],
+        "properties": {
+          "status": { "type": "string", "enum": ["ok", "degraded"] },
+          "version": { "type": "string" },
+          "model": { "type": "string" },
+          "db": {
+            "type": "object",
+            "required": ["engine", "status"],
+            "properties": {
+              "engine": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          },
+          "gateway": {
+            "type": "object",
+            "required": ["ws_connections", "max_ws_connections"],
+            "properties": {
+              "ws_connections": { "type": "number" },
+              "max_ws_connections": { "type": "number" }
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "companion",
+              "governance",
+              "memory_review",
+              "channel_posture",
+              "session_review",
+              "a2a",
+              "multi_tenant"
+            ],
+            "properties": {
+              "companion": { "type": "boolean" },
+              "governance": { "type": "boolean" },
+              "memory_review": { "type": "boolean" },
+              "channel_posture": { "type": "boolean" },
+              "session_review": { "type": "boolean" },
+              "a2a": { "type": "boolean" },
+              "multi_tenant": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "UsageResponse": {
+        "type": "object",
+        "required": [
+          "total_input_tokens",
+          "total_output_tokens",
+          "total_tokens",
+          "session_count",
+          "message_count",
+          "model"
+        ],
+        "properties": {
+          "total_input_tokens": { "type": "number" },
+          "total_output_tokens": { "type": "number" },
+          "total_tokens": { "type": "number" },
+          "session_count": { "type": "number" },
+          "message_count": { "type": "number" },
+          "model": { "type": "string" }
+        }
+      },
+      "MoodResponse": {
+        "type": "object",
+        "required": ["label", "confidence", "description"],
+        "properties": {
+          "label": { "type": "string" },
+          "confidence": { "type": "number" },
+          "description": { "type": "string" }
+        }
+      },
+      "ActivityEvent": {
+        "type": "object",
+        "required": ["kind", "id", "label", "state", "timestamp"],
+        "properties": {
+          "kind": { "type": "string" },
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "state": { "type": "string" },
+          "timestamp": { "type": "string" }
+        }
+      },
+      "ActivityTimelineResponse": {
+        "type": "object",
+        "required": ["events", "count"],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ActivityEvent" }
+          },
+          "count": { "type": "number" }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": ["id", "surface", "owner_scope", "state", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "surface": { "type": "string" },
+          "owner_scope": { "type": "string" },
+          "state": { "type": "string" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        }
+      },
+      "SessionListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Session" }
+          },
+          "next_cursor": { "type": "string" }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "required": ["id", "role", "content", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "role": { "type": "string" },
+          "content": { "type": "string" },
+          "input_tokens": { "type": "number" },
+          "output_tokens": { "type": "number" },
+          "created_at": { "type": "string" }
+        }
+      },
+      "SessionMessageListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Message" }
+          },
+          "next_cursor": { "type": "string" }
+        }
+      },
+      "MemoryEntitySummary": {
+        "type": "object",
+        "required": ["entity_id", "slot_count"],
+        "properties": {
+          "entity_id": { "type": "string" },
+          "slot_count": { "type": "number" }
+        }
+      },
+      "MemoryEntitiesResponse": {
+        "type": "object",
+        "required": ["items", "count", "backend"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MemoryEntitySummary" }
+          },
+          "count": { "type": "number" },
+          "backend": { "type": "string" }
+        }
+      },
+      "MemorySlotProvenance": {
+        "type": "object",
+        "required": ["source_class", "reference"],
+        "properties": {
+          "source_class": { "type": "string" },
+          "reference": { "type": "string" },
+          "evidence_uri": { "type": "string" }
+        }
+      },
+      "MemorySlotSummary": {
+        "type": "object",
+        "required": [
+          "slot_key",
+          "value",
+          "source",
+          "confidence",
+          "importance",
+          "privacy_level",
+          "updated_at"
+        ],
+        "properties": {
+          "slot_key": { "type": "string" },
+          "value": { "type": "string" },
+          "source": { "type": "string" },
+          "confidence": { "type": "number" },
+          "importance": { "type": "number" },
+          "privacy_level": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "provenance": { "$ref": "#/components/schemas/MemorySlotProvenance" }
+        }
+      },
+      "MemorySlotsResponse": {
+        "type": "object",
+        "required": ["entity_id", "items", "count", "event_count"],
+        "properties": {
+          "entity_id": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MemorySlotSummary" }
+          },
+          "count": { "type": "number" },
+          "event_count": { "type": "number" }
+        }
+      },
+      "MemoryConsolidationWorker": {
+        "type": "object",
+        "required": ["entity_id", "checkpoint_event_count", "phase"],
+        "properties": {
+          "entity_id": { "type": "string" },
+          "checkpoint_event_count": { "type": "number" },
+          "phase": { "type": "string" },
+          "disposition": { "type": "string" },
+          "previous_watermark": { "type": "number" },
+          "applied_watermark": { "type": "number" },
+          "started_at": { "type": "string" },
+          "finished_at": { "type": "string" },
+          "last_error": { "type": "string" }
+        }
+      },
+      "MemoryConsolidationStatusResponse": {
+        "type": "object",
+        "required": ["items", "count"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MemoryConsolidationWorker" }
+          },
+          "count": { "type": "number" }
+        }
+      },
+      "MemoryExposureStatusResponse": {
+        "type": "object",
+        "required": ["observed_builds", "sensitive_counts_redacted"],
+        "properties": {
+          "observed_builds": { "type": "number" },
+          "sensitive_counts_redacted": { "type": "boolean" }
+        }
+      },
+      "SelfAmendmentCandidateReview": {
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "kind",
+          "status",
+          "person_id",
+          "surface",
+          "privacy",
+          "evidence_ids",
+          "reason",
+          "proposed_amendment",
+          "raw_payload_redacted"
+        ],
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "kind": { "type": "string" },
+          "status": { "type": "string" },
+          "tenant_id": { "type": ["string", "null"] },
+          "person_id": { "type": "string" },
+          "surface": { "type": "string" },
+          "privacy": { "type": "string" },
+          "evidence_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "reason": { "type": "string" },
+          "proposed_amendment": { "type": "string" },
+          "raw_payload_redacted": { "type": "boolean" }
+        }
+      },
+      "SelfAmendmentReviewResponse": {
+        "type": "object",
+        "required": ["count", "items", "raw_payloads_redacted", "durable_writes_enabled"],
+        "properties": {
+          "count": { "type": "number" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SelfAmendmentCandidateReview" }
+          },
+          "raw_payloads_redacted": { "type": "boolean" },
+          "durable_writes_enabled": { "type": "boolean" }
+        }
+      },
+      "SelfAmendmentApproveRequest": {
+        "type": "object",
+        "required": ["candidate_id", "reason"],
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "SelfAmendmentApprovalResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "candidate_id",
+          "entity_id",
+          "slot_key",
+          "event_id",
+          "persisted",
+          "raw_payload_redacted"
+        ],
+        "properties": {
+          "status": { "type": "string" },
+          "candidate_id": { "type": "string" },
+          "entity_id": { "type": "string" },
+          "slot_key": { "type": "string" },
+          "event_id": { "type": "string" },
+          "persisted": { "type": "boolean" },
+          "raw_payload_redacted": { "type": "boolean" }
+        }
+      },
+      "AuthProfile": {
+        "type": "object",
+        "required": ["id", "provider", "has_api_key", "disabled"],
+        "properties": {
+          "id": { "type": "string" },
+          "provider": { "type": "string" },
+          "auth_route": { "type": "string" },
+          "label": { "type": "string" },
+          "has_api_key": { "type": "boolean" },
+          "auth_scheme": { "type": "string" },
+          "oauth_source": { "type": "string" },
+          "disabled": { "type": "boolean" }
+        }
+      },
+      "AuthProfilesResponse": {
+        "type": "object",
+        "required": ["items", "defaults"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AuthProfile" }
+          },
+          "defaults": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      },
+      "ProvidersResponse": {
+        "type": "object",
+        "required": ["active_provider", "active_model", "temperature"],
+        "properties": {
+          "active_provider": { "type": "string" },
+          "active_model": { "type": "string" },
+          "temperature": { "type": "number" }
+        }
+      },
+      "SettingsResponse": {
+        "type": "object",
+        "required": ["workspace_dir", "memory", "autonomy", "gateway"],
+        "properties": {
+          "workspace_dir": { "type": "string" },
+          "memory": {
+            "type": "object",
+            "required": ["backend", "auto_save"],
+            "properties": {
+              "backend": { "type": "string" },
+              "auto_save": { "type": "boolean" }
+            }
+          },
+          "autonomy": {
+            "type": "object",
+            "required": ["max_tool_loop"],
+            "properties": {
+              "max_tool_loop": { "type": "number" }
+            }
+          },
+          "gateway": {
+            "type": "object",
+            "required": ["pairing_enabled", "defense_mode", "cors_origins"],
+            "properties": {
+              "pairing_enabled": { "type": "boolean" },
+              "defense_mode": { "type": "string" },
+              "cors_origins": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "Channel": {
+        "type": "object",
+        "required": ["id", "name", "configured", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "configured": { "type": "boolean" },
+          "type": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "ChannelsResponse": {
+        "type": "object",
+        "required": ["items", "active_names", "high_freedom"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Channel" }
+          },
+          "active_names": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "high_freedom": { "type": "boolean" }
+        }
+      },
+      "SkillTool": {
+        "type": "object",
+        "required": ["name", "description", "kind"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "kind": { "type": "string" }
+        }
+      },
+      "Skill": {
+        "type": "object",
+        "required": ["name", "description", "version", "tags", "tools"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "version": { "type": "string" },
+          "author": { "type": "string" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "tools": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SkillTool" }
+          },
+          "location": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "SkillsResponse": {
+        "type": "object",
+        "required": ["items", "count"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Skill" }
+          },
+          "count": { "type": "number" }
+        }
+      },
+      "CronJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "expression",
+          "command",
+          "next_run",
+          "job_kind",
+          "origin",
+          "max_attempts",
+          "consecutive_failures"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "expression": { "type": "string" },
+          "command": { "type": "string" },
+          "next_run": { "type": "string" },
+          "last_run": { "type": "string" },
+          "last_status": { "type": "string" },
+          "job_kind": { "type": "string", "enum": ["user", "agent"] },
+          "origin": { "type": "string", "enum": ["user", "agent"] },
+          "expires_at": { "type": "string" },
+          "max_attempts": { "type": "number" },
+          "consecutive_failures": { "type": "number" },
+          "breaker_open_until": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "CronJobListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CronJob" }
+          }
+        }
+      },
+      "CompanionScope": {
+        "type": "object",
+        "required": ["scope", "captions", "widgets", "windows", "context_gate_entries"],
+        "properties": {
+          "scope": { "type": "string" },
+          "captions": { "type": "number" },
+          "widgets": { "type": "number" },
+          "windows": { "type": "number" },
+          "context_gate_entries": { "type": "number" }
+        }
+      },
+      "CompanionScopeListResponse": {
+        "type": "object",
+        "required": ["items", "count"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CompanionScope" }
+          },
+          "count": { "type": "number" }
+        }
+      },
+      "CompanionCaption": {
+        "type": "object",
+        "required": ["caption_id", "channel", "sequence", "text", "emitted_at"],
+        "properties": {
+          "caption_id": { "type": "string" },
+          "channel": { "type": "string", "enum": ["speaker", "assistant"] },
+          "sequence": { "type": "number" },
+          "text": { "type": "string" },
+          "emitted_at": { "type": "string" }
+        }
+      },
+      "CompanionCaptionListResponse": {
+        "type": "object",
+        "required": ["scope", "items"],
+        "properties": {
+          "scope": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CompanionCaption" }
+          }
+        }
+      },
+      "CompanionWidget": {
+        "type": "object",
+        "required": ["widget_id", "payload", "created_at", "updated_at"],
+        "properties": {
+          "widget_id": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "expires_at": { "type": "string" }
+        }
+      },
+      "CompanionWidgetListResponse": {
+        "type": "object",
+        "required": ["scope", "items"],
+        "properties": {
+          "scope": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CompanionWidget" }
+          }
+        }
+      },
+      "CompanionWindowEntry": {
+        "type": "object",
+        "required": ["window_id", "requested_action", "created_at", "expires_at", "state"],
+        "properties": {
+          "window_id": { "type": "string" },
+          "requested_action": { "type": "string" },
+          "created_at": { "type": "string" },
+          "expires_at": { "type": "string" },
+          "state": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "cancelled", "expired"]
+          }
+        }
+      },
+      "CompanionWindowListResponse": {
+        "type": "object",
+        "required": ["scope", "items"],
+        "properties": {
+          "scope": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CompanionWindowEntry" }
+          }
+        }
+      },
+      "TenantRegistryRow": {
+        "type": "object",
+        "required": ["tenant_id", "principal_hashes", "binding_count", "workspace_present"],
+        "properties": {
+          "tenant_id": { "type": "string" },
+          "principal_hashes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "binding_count": { "type": "number" },
+          "workspace_present": { "type": "boolean" }
+        }
+      },
+      "TenantsResponse": {
+        "type": "object",
+        "required": ["rows", "discovered_workspaces", "binding_count", "workspace_count"],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TenantRegistryRow" }
+          },
+          "discovered_workspaces": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "binding_count": { "type": "number" },
+          "workspace_count": { "type": "number" },
+          "tenant_scope": { "type": "string" }
+        }
+      },
+      "TenantContextResponse": {
+        "type": "object",
+        "required": ["tenant_mode_available"],
+        "properties": {
+          "active_tenant": { "type": "string" },
+          "tenant_header": { "type": "string" },
+          "tenant_mode_available": { "type": "boolean" }
+        }
+      },
+      "TenantContextUpdateResponse": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "type": "string" },
+          "tenant_id": { "type": "string" }
+        }
+      },
+      "DomainTrustEntry": {
+        "type": "object",
+        "required": ["domain", "score", "autonomy", "success_count", "violation_count", "last_updated"],
+        "properties": {
+          "domain": { "type": "string" },
+          "score": { "type": "number" },
+          "autonomy": { "type": "string" },
+          "success_count": { "type": "number" },
+          "violation_count": { "type": "number" },
+          "last_updated": { "type": "string" }
+        }
+      },
+      "PendingWindow": {
+        "type": "object",
+        "required": ["scope", "window_id", "requested_action", "created_at", "expires_at"],
+        "properties": {
+          "scope": { "type": "string" },
+          "window_id": { "type": "string" },
+          "requested_action": { "type": "string" },
+          "created_at": { "type": "string" },
+          "expires_at": { "type": "string" }
+        }
+      },
+      "GovernanceSummary": {
+        "type": "object",
+        "required": ["runtime", "domain_trust", "pending_windows"],
+        "properties": {
+          "runtime": {
+            "type": "object",
+            "required": [
+              "memory_backend",
+              "memory_review",
+              "companion_surface_windows",
+              "companion_surface_scopes"
+            ],
+            "properties": {
+              "memory_backend": { "type": "string" },
+              "memory_review": { "type": "boolean" },
+              "companion_surface_windows": { "type": "number" },
+              "companion_surface_scopes": { "type": "number" }
+            }
+          },
+          "domain_trust": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DomainTrustEntry" }
+          },
+          "pending_windows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PendingWindow" }
+          }
+        }
+      },
+      "AgentEntry": {
+        "type": "object",
+        "required": ["id", "name", "model", "is_default", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "model": { "type": "string" },
+          "is_default": { "type": "boolean" },
+          "status": { "type": "string" },
+          "task": { "type": "string" }
+        }
+      },
+      "AgentListResponse": {
+        "type": "object",
+        "required": ["items", "count"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AgentEntry" }
+          },
+          "count": { "type": "number" }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "source": { "type": "string" },
+          "result": { "type": "string" },
+          "active_tenant": { "type": "string" },
+          "event_id": { "type": "string" },
+          "run_id": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

@@ -1,0 +1,148 @@
+/* ━━━ Inline-style consolidation utilities ━━━ */
+
+/* Text color utilities */
+.text-muted {
+  color: var(--fg-muted);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-warn {
+  color: var(--warn);
+}
+
+.text-fg {
+  color: var(--fg);
+}
+
+/* Meta label — replaces inline fontSize:10px + fontWeight:600 + letterSpacing + uppercase */
+.ui-meta-label {
+  color: var(--fg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ━━━ Delight — tactile notebook micro-interactions ━━━ */
+
+/* Empty-page bob — loose page icon drifts gently */
+.app-empty-bob {
+  animation: empty-bob 4s ease-in-out infinite;
+}
+
+@keyframes empty-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-4px) rotate(-0.6deg);
+  }
+  60% {
+    transform: translateY(-1px) rotate(0.3deg);
+  }
+}
+
+/* Broken pencil wobble — error state pencil rocks side to side */
+.app-error-wobble {
+  animation: error-wobble 2.5s ease-in-out infinite;
+}
+
+@keyframes error-wobble {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-2deg);
+  }
+  75% {
+    transform: rotate(1.5deg);
+  }
+}
+
+/* Badge entrance — masking tape placed down with a press */
+.app-badge-enter {
+  animation: badge-place 300ms var(--ease-out) both;
+}
+
+@keyframes badge-place {
+  from {
+    opacity: 0;
+    transform: rotate(var(--badge-rotation, -0.3deg)) scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--badge-rotation, -0.3deg)) scale(1);
+  }
+}
+
+/* Field focus warmth — input bg tints slightly warm on focus */
+.ui-field:focus {
+  background: oklch(0.56 0.08 158 / 0.015);
+  border-left-color: oklch(0.56 0.08 158 / 0.28);
+  border-left-width: 2px;
+}
+
+/* Transcript row — subtle left margin bookmark on selection */
+.ui-transcript-focus[data-selected="true"] {
+  box-shadow: inset 2px 0 0 oklch(0.56 0.08 158 / 0.3);
+}
+
+/* Stat pill — gentle highlight pulse on tone-colored values */
+.ui-stat-pill-value {
+  transition: color 300ms var(--ease-out);
+}
+
+/* ━━━ Chat — typing dot bounce ━━━ */
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.animate-typing-dot {
+  animation: typing-dot 0.8s ease infinite;
+}
+
+/* ━━━ Chat — tool call running pulse ━━━ */
+
+@keyframes tool-running-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-tool-running {
+  animation: tool-running-pulse 1.5s ease infinite;
+}
+
+/* ━━━ Reduced motion ━━━ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

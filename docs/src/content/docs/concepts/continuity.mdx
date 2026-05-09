@@ -1,0 +1,77 @@
+---
+title: Continuity over conversation
+description: Why memory, persona, and relationship continuity are central, and why conversation is the surface that makes them visible.
+---
+
+import Pipeline from '../../../components/Pipeline.astro';
+
+One surface-level way to describe Asterel is "a Discord bot with memory." That is not false, but it misses the main design point: Asterel is a runtime for maintaining continuity between turns.
+
+## The core claim
+
+**The conversation is not the product. Continuity is.**
+
+A conversation is the interface through which a user meets the runtime. What the runtime is *trying to maintain* across that interface is something else: three kinds of state that persist between turns and between sessions.
+
+- **Relationship state** — what has happened between this companion and this person: shared context, established tone, boundaries that have been negotiated, things the user has told the companion about themselves, things the companion has said it will remember.
+- **Persona state** — the companion's character-side state: current affect, latent-bias signals, continuity signals from recent turns, and posture toward the current room or channel.
+- **World state** — lightweight grounding about time, channel, recent session activity, active collaborators.
+
+Accepted companion turns are assembled *from* this state and, after they are sent, can be folded *back into* it through governed writeback. The language model is one rendering and reasoning component inside that loop. The durable state is what lets the companion become more recognizable over time.
+
+## Why the distinction matters
+
+Once you accept this framing, several design decisions stop looking arbitrary:
+
+- **Memory is not optional for the full product shape.** The default backend is a real database, not a transient buffer. Markdown is a fallback for offline / constrained deploys; it is not the recommended mode.
+- **Prompts are not the locus of change.** Tweaking a system prompt produces a short-lived shift; tweaking the memory ingestion pipeline or the affect topology produces a persistent one. The project invests in the second.
+- **Companion turns converge on one contract.** If Discord, the CLI, the gateway, and operator surfaces each invented their own enrichment and verification rules, continuity would silently diverge by surface. They do not — when they execute or replay a companion turn, they reuse [the shared companion-turn contract](../../architecture/turn-pipeline/) appropriate to that surface.
+- **Pre-send verification is a continuity guard.** A bad turn does not just fail a task; it can pollute the state it is about to be folded into. The pre-send verifier exists because unchecked bad turns create durable damage, not only momentary UX glitches.
+- **"Anti-thinness" is a design rule.** A character that responds plausibly but has no stable state — no affect, no bias, no tension between state and utterance — reads as thin over time. The affect topology and latent bias systems exist to make character behavior less like a last-mile tone filter.
+
+## What continuity is made of
+
+The implementation keeps continuity concrete:
+
+- **Recall and writeback** decide which memories enter the turn and what should be preserved after it.
+- **Relationship events** record how the interaction changed trust, distance, and shared context.
+- **Persona transition notes** preserve why the companion's stance moved instead of only recording that it moved.
+- **Exposure rails** separate public-facing and private grounding so useful memory does not become indiscriminate disclosure.
+- **Thin session control** tracks current conversation mode, expected density, recent open loops, and behaviors to avoid without promoting every short-lived cue into durable memory.
+- **Diagnostics** expose enough status for an operator to see whether consolidation, recall, and enrichment are working.
+
+## The shape of the loop
+
+<Pipeline
+  label="Continuity loop"
+  loop
+  loopLabel="The last step is the first step of the next turn."
+  steps={[
+    { title: 'Companion has state' },
+    { title: 'User sends something' },
+    {
+      title: 'State is read',
+      detail: 'memory recall · persona context · affect appraisal',
+    },
+    { title: 'Response is assembled, verified, sent' },
+    {
+      title: 'State is updated',
+      detail: 'relationship memory · persona drift · continuity cues',
+    },
+    {
+      title: 'Companion still has state — now slightly different',
+    },
+  ]}
+/>
+
+The critical edges are the first and last, not the middle. A runtime that produces good middles but drops the edges is a chatbot with a personality. A runtime that holds the edges is a companion.
+
+## Implications for users
+
+If you operate an Asterel deployment:
+
+- **The runtime has more context over time.** Early sessions are thinner than later ones, by design, because there is less relationship evidence to carry forward.
+- **Resetting memory is a real cost, not a clean slate.** Memory is one of the places where relationship context, preferences, corrections, and prior interactions are maintained. Resetting it changes what the companion can carry forward.
+- **Character consistency is a first-class invariant.** Regressions show up in behavior before they show up in tests, because they are, fundamentally, about continuity drift.
+
+None of this is visible from the outside if all you see is a Discord channel. That is why the site exists.

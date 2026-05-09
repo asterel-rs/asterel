@@ -1,0 +1,79 @@
+# ── Version control ───────────────────────────────────────────
+.git
+.gitignore
+.githooks
+.github
+
+# ── Build artifacts ───────────────────────────────────────────
+target
+fuzz/target
+
+# ── Documentation (not needed for runtime) ────────────────────
+docs
+examples
+*.md
+LICENSE
+
+# ── Tests (not needed for runtime) ────────────────────────────
+tests
+
+# ── Dev tooling (not needed for runtime) ──────────────────────
+scripts
+sample
+playground
+.claude
+.agents
+.agent-state
+internal-docs
+/AGENTS.md
+/CLAUDE.md
+/CONTEXT.md
+/.mailmap
+!src/onboard/templates/*.md
+.cargo
+.editorconfig
+deny.toml
+rust-toolchain.toml
+docker-compose.yml
+
+# ── Images ────────────────────────────────────────────────────
+*.png
+*.svg
+*.jpg
+*.jpeg
+*.gif
+
+# ── Databases ─────────────────────────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── Environment / secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS / editor artifacts ─────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+.idea
+.vscode
+*.iml
+*.swp
+*~
+
+# ── Temporary files ───────────────────────────────────────────
+.tmp_*
+*.tmp
+*.bak
+
+# ── Profiling / coverage ─────────────────────────────────────
+*.profraw
+*.profdata
+coverage
+lcov.info
+evidence
+.asterel
+lumen-out
