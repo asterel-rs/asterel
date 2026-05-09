@@ -37,6 +37,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Ensure release target is installed
+        run: rustup target add ${{ matrix.target }}
+
       - uses: ./.github/actions/setup-protoc
         with:
           version: "29.3"
