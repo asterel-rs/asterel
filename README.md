@@ -80,7 +80,28 @@ Channel input
 
 ## Quick Start
 
-### Prerequisites
+### Install (macOS/Linux)
+
+```bash
+curl -fsSL https://asterel-rs.github.io/asterel/install.sh | sh
+asterel onboard --interactive
+```
+
+The installer puts `asterel` in `~/.local/bin` by default. It uses GitHub release binaries when
+available and falls back to a source build otherwise. If your shell cannot find `asterel` yet, run
+`~/.local/bin/asterel onboard --interactive` or add `~/.local/bin` to `PATH`.
+
+### Run
+
+```bash
+asterel agent
+asterel agent --message "Summarize my open tasks"
+```
+
+<details>
+<summary>Build from source instead</summary>
+
+Prerequisites:
 
 - Rust stable from [`rust-toolchain.toml`](rust-toolchain.toml)
 - `protoc` v29+
@@ -89,29 +110,15 @@ Channel input
 - PostgreSQL for the recommended memory backend. Markdown and `none` memory modes exist for
   constrained/offline setups, but PostgreSQL is the production recommendation.
 
-### Build
-
 ```bash
 git clone https://github.com/asterel-rs/asterel.git
 cd asterel
 cargo build --release
-```
-
-### First run
-
-`onboard --interactive` is required before `agent` can start. It writes
-`~/.asterel/config.toml` and initializes the workspace.
-
-```bash
-# Interactive onboarding wizard
 cargo run -- onboard --interactive
-
-# Start the interactive companion loop
 cargo run -- agent
-
-# Send one message after onboarding
-cargo run -- agent --message "Summarize my open tasks"
 ```
+
+</details>
 
 ## Core capabilities
 
