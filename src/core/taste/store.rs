@@ -154,7 +154,7 @@ impl PostgresTasteStore {
                       AND n.nspname = current_schema()
                       AND c.contype IN ('p', 'u')
                       AND (
-                          SELECT array_agg(a.attname ORDER BY keys.ordinality)
+                          SELECT array_agg(a.attname::text ORDER BY keys.ordinality)
                           FROM unnest(c.conkey) WITH ORDINALITY AS keys(attnum, ordinality)
                           JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = keys.attnum
                       ) = ARRAY['item_id', 'domain']
