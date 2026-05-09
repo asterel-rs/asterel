@@ -112,12 +112,12 @@ tower-http = { version = "0.6", default-features = false, features = ["limit", "
 
 # Streaming (OpenAI-compat SSE, WebSocket)
 async-stream = { version = "0.3", default-features = false }
-rmcp = { version = "1.5.0", features = ["client", "transport-child-process", "transport-io"], optional = true }
+rmcp = { version = "1.6.0", features = ["client", "transport-child-process", "transport-io"], optional = true }
 
 # Intent classifier (ONNX inference)
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
-quick-xml = { version = "0.39.2", default-features = false }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"], optional = true }
+quick-xml = { version = "0.39.4", default-features = false }
 regex = "1.12.3"
 cliclack = "0.5"
 
