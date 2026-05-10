@@ -2,6 +2,7 @@
 //! histograms for events, lifecycle signals, and entity KPIs.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -217,6 +218,95 @@ impl PrometheusObserver {
         }
     }
 
+    /// Render a Prometheus text exposition snapshot.
+    ///
+    /// This method is side-effect free and is intended for whichever runtime
+    /// surface owns the eventual `/metrics` scrape endpoint. It keeps metric
+    /// naming and label encoding close to the observer state so HTTP wiring can
+    /// remain a thin adapter.
+    #[must_use]
+    pub fn render_text(&self) -> String {
+        let mut out = String::new();
+        push_counter(
+            &mut out,
+            "asterel_observer_events_total",
+            self.event_count.load(Ordering::Relaxed),
+        );
+        push_counter(
+            &mut out,
+            "asterel_observer_metrics_total",
+            self.metric_count.load(Ordering::Relaxed),
+        );
+        push_counter(
+            &mut out,
+            "asterel_observer_errors_total",
+            self.error_count.load(Ordering::Relaxed),
+        );
+        push_counter(
+            &mut out,
+            "asterel_autonomy_lifecycle_total",
+            self.autonomy_lifecycle_total.load(Ordering::Relaxed),
+        );
+        push_counter(
+            &mut out,
+            "asterel_memory_lifecycle_total",
+            self.memory_lifecycle_total.load(Ordering::Relaxed),
+        );
+        push_counter(
+            &mut out,
+            "asterel_memory_slo_violations_total",
+            self.memory_slo_violation_count.load(Ordering::Relaxed),
+        );
+
+        push_labeled_counters(
+            &mut out,
+            "asterel_signal_ingest_total",
+            "source_kind",
+            self.signal_ingest_by_source
+                .lock()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        );
+        push_labeled_counters(
+            &mut out,
+            "asterel_signal_dedup_drop_total",
+            "source_kind",
+            self.signal_dedup_drop_by_source
+                .lock()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        );
+        push_labeled_counters(
+            &mut out,
+            "asterel_signal_tier_snapshot",
+            "tier",
+            self.signal_tier_snapshot
+                .lock()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        );
+        push_labeled_counters(
+            &mut out,
+            "asterel_promotion_status_snapshot",
+            "status",
+            self.promotion_status_snapshot
+                .lock()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        );
+        push_labeled_counters(
+            &mut out,
+            "asterel_post_turn_hook_total",
+            "hook_status",
+            self.post_turn_hook_by_status
+                .lock()
+                .map(|guard| guard.clone())
+                .unwrap_or_default(),
+        );
+
+        out
+    }
+
     fn record_autonomy_signal(&self, signal: AutonomySignal) {
         self.autonomy_lifecycle_total
             .fetch_add(1, Ordering::Relaxed);
@@ -426,6 +516,38 @@ impl PrometheusObserver {
                 .unwrap_or_default(),
         }
     }
+}
+
+fn push_counter(out: &mut String, name: &str, value: u64) {
+    let _ = writeln!(out, "# TYPE {name} counter");
+    let _ = writeln!(out, "{name} {value}");
+}
+
+fn push_labeled_counters(out: &mut String, name: &str, label: &str, values: HashMap<String, u64>) {
+    if values.is_empty() {
+        return;
+    }
+
+    let _ = writeln!(out, "# TYPE {name} counter");
+    let mut values: Vec<_> = values.into_iter().collect();
+    values.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
+    for (label_value, value) in values {
+        let label_value = escape_label_value(&label_value);
+        let _ = writeln!(out, "{name}{{{label}=\"{label_value}\"}} {value}");
+    }
+}
+
+fn escape_label_value(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '\n' => escaped.push_str("\\n"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
 }
 
 impl Default for PrometheusObserver {
@@ -654,5 +776,25 @@ mod tests {
             entity.source_by_axis.get("identity_continuity"),
             Some(&"second".to_string())
         );
+    }
+
+    #[test]
+    fn prometheus_render_text_exposes_scrapeable_snapshot() {
+        let obs = PrometheusObserver::new();
+        obs.record_event(&ObserverEvent::HeartbeatTick);
+        obs.record_metric(&ObserverMetric::SignalIngestTotal {
+            source_kind: "gateway\"edge".to_string(),
+        });
+        obs.record_metric(&ObserverMetric::PostTurnHook {
+            hook: "memory_flush".to_string(),
+            status: "ok".to_string(),
+        });
+
+        let text = obs.render_text();
+
+        assert!(text.contains("# TYPE asterel_observer_events_total counter"));
+        assert!(text.contains("asterel_observer_events_total 1"));
+        assert!(text.contains("asterel_signal_ingest_total{source_kind=\"gateway\\\"edge\"} 1"));
+        assert!(text.contains("asterel_post_turn_hook_total{hook_status=\"memory_flush:ok\"} 1"));
     }
 }
