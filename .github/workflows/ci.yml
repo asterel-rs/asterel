@@ -127,8 +127,8 @@ jobs:
         with:
           version: "29.3"
       - uses: Swatinem/rust-cache@v2
-      - name: Check isolated feature
-        run: cargo check --no-default-features --features "${{ matrix.feature }}"
+      - name: Check feature with supported persistence backend
+        run: cargo check --no-default-features --features "postgres,${{ matrix.feature }}"
 
   coverage:
     name: Coverage (baseline)
