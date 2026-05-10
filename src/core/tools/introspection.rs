@@ -1,3 +1,11 @@
+//! Introspection tools exposed to the agent runtime.
+//!
+//! These tools read the current cognitive context, relationship state,
+//! self-model, principles, experience memory, and consistency scores without
+//! mutating durable state. They are intentionally separate from writeback tools
+//! so prompt/tool planning can ask "what do I know about this turn?" before any
+//! memory or persona update is allowed.
+
 use std::future::Future;
 use std::pin::Pin;
 

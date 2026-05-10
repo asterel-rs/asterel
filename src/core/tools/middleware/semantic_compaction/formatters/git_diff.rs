@@ -185,19 +185,18 @@ fn push_header(file: &mut DiffFile, line: &str) {
 
 fn render_git_diff(parsed: &ParsedGitDiff) -> String {
     let mut rendered = String::new();
-    writeln!(&mut rendered, "git diff").unwrap();
-    writeln!(&mut rendered, "files: {}", parsed.files.len()).unwrap();
+    let _ = writeln!(&mut rendered, "git diff");
+    let _ = writeln!(&mut rendered, "files: {}", parsed.files.len());
 
     for file in &parsed.files {
-        writeln!(&mut rendered, "file: {}", file.identity).unwrap();
-        writeln!(
+        let _ = writeln!(&mut rendered, "file: {}", file.identity);
+        let _ = writeln!(
             &mut rendered,
             "counts: +{} -{} hunks={}",
             file.added, file.removed, file.hunks
-        )
-        .unwrap();
+        );
         if !file.headers.is_empty() {
-            writeln!(&mut rendered, "headers: {}", file.headers.join(" | ")).unwrap();
+            let _ = writeln!(&mut rendered, "headers: {}", file.headers.join(" | "));
         }
     }
 

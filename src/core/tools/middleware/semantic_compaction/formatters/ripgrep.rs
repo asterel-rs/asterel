@@ -217,14 +217,14 @@ fn push_preview(group: &mut RgFileGroup, preview: String) {
 
 fn render_ripgrep(parsed: &ParsedRipgrep) -> String {
     let mut rendered = String::new();
-    writeln!(&mut rendered, "rg").unwrap();
-    writeln!(&mut rendered, "matches: {}", parsed.total_matches).unwrap();
-    writeln!(&mut rendered, "files: {}", parsed.files.len()).unwrap();
+    let _ = writeln!(&mut rendered, "rg");
+    let _ = writeln!(&mut rendered, "matches: {}", parsed.total_matches);
+    let _ = writeln!(&mut rendered, "files: {}", parsed.files.len());
 
     for group in &parsed.files {
-        writeln!(&mut rendered, "file: {} [{}]", group.file, group.matches).unwrap();
+        let _ = writeln!(&mut rendered, "file: {} [{}]", group.file, group.matches);
         for preview in &group.previews {
-            writeln!(&mut rendered, "  {preview}").unwrap();
+            let _ = writeln!(&mut rendered, "  {preview}");
         }
     }
 
