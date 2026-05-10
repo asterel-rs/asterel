@@ -102,6 +102,34 @@ jobs:
           --no-default-features
           --features discord,postgres,media,link-extraction,taste,telegram,slack,matrix,irc,twitter,whatsapp,imessage,email,mcp
 
+  feature-matrix-check:
+    name: Feature matrix check (${{ matrix.feature }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature:
+          - discord
+          - postgres
+          - telegram
+          - slack
+          - matrix
+          - irc
+          - twitter
+          - whatsapp
+          - imessage
+          - email
+          - mcp
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-protoc
+        with:
+          version: "29.3"
+      - uses: Swatinem/rust-cache@v2
+      - name: Check isolated feature
+        run: cargo check --no-default-features --features "${{ matrix.feature }}"
+
   coverage:
     name: Coverage (baseline)
     runs-on: ubuntu-latest
