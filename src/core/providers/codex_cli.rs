@@ -494,16 +494,19 @@ mod tests {
 
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("codex-stub.sh");
-        let mut tmp = tempfile::NamedTempFile::new_in(dir.path()).expect("temp stub");
-        tmp.write_all(contents.as_bytes()).expect("write stub");
-        tmp.flush().expect("flush stub");
-        tmp.as_file().sync_all().expect("sync stub");
-        let mut perms = tmp.as_file().metadata().expect("metadata").permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(tmp.path(), perms).expect("chmod");
-        let file = tmp.persist(&path).expect("persist stub");
-        file.sync_all().expect("sync persisted stub");
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .expect("create stub");
+        file.write_all(contents.as_bytes()).expect("write stub");
+        file.flush().expect("flush stub");
+        file.sync_all().expect("sync stub");
         drop(file);
+
+        let mut perms = fs::metadata(&path).expect("metadata").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).expect("chmod");
         dir
     }
 
