@@ -489,14 +489,21 @@ mod tests {
 
     #[cfg(unix)]
     fn write_stub(contents: &str) -> tempfile::TempDir {
+        use std::io::Write;
         use std::os::unix::fs::PermissionsExt;
 
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("codex-stub.sh");
-        fs::write(&path, contents).expect("write stub");
-        let mut perms = fs::metadata(&path).expect("metadata").permissions();
+        let mut tmp = tempfile::NamedTempFile::new_in(dir.path()).expect("temp stub");
+        tmp.write_all(contents.as_bytes()).expect("write stub");
+        tmp.flush().expect("flush stub");
+        tmp.as_file().sync_all().expect("sync stub");
+        let mut perms = tmp.as_file().metadata().expect("metadata").permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(&path, perms).expect("chmod");
+        fs::set_permissions(tmp.path(), perms).expect("chmod");
+        let file = tmp.persist(&path).expect("persist stub");
+        file.sync_all().expect("sync persisted stub");
+        drop(file);
         dir
     }
 
