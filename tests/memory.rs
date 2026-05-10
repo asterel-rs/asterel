@@ -1,5 +1,7 @@
 #[path = "support/memory_harness.rs"]
 mod memory_harness;
+#[path = "support/test_env.rs"]
+mod test_env;
 
 #[path = "memory/backend_compatibility.rs"]
 mod backend_compatibility;
@@ -19,6 +21,9 @@ mod governance;
 mod layer_schema;
 #[path = "memory/markdown_tagged.rs"]
 mod markdown_tagged;
+#[cfg(feature = "postgres")]
+#[path = "memory/postgres_integration.rs"]
+mod postgres_integration;
 #[path = "memory/provenance_validation.rs"]
 mod provenance_validation;
 #[path = "memory/revocation_gate.rs"]

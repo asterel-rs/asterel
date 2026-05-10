@@ -332,6 +332,8 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
 
+    use crate::core::memory::embeddings::NoopEmbedding;
+    use crate::core::memory::graphrag::entity_resolution::{AlwaysDifferentJudge, EntityResolver};
     use crate::core::providers::{Provider, ProviderResult};
 
     use super::*;
@@ -469,5 +471,89 @@ mod tests {
                 && relation.source_entity_key == "user_haru"
                 && relation.target_entity_key == "preference_quiet_replies"
         }));
+    }
+
+    #[tokio::test]
+    async fn graphrag_extraction_resolves_entities_and_persists_roundtrip() {
+        let provider = StubProvider {
+            response: r#"{
+                "entities": [
+                    {
+                        "entity_key": "user_haru",
+                        "canonical_name": "Haru",
+                        "entity_type": "user",
+                        "aliases": ["operator"],
+                        "summary": "The main user.",
+                        "evidence_ids": ["doc-1"]
+                    },
+                    {
+                        "entity_key": "user_haru_duplicate",
+                        "canonical_name": "Haru Morita",
+                        "entity_type": "user",
+                        "aliases": ["Haru"],
+                        "summary": "The same user mentioned by full name.",
+                        "evidence_ids": ["doc-1"]
+                    },
+                    {
+                        "entity_key": "preference_quiet_replies",
+                        "canonical_name": "Quiet replies",
+                        "entity_type": "preference",
+                        "aliases": ["calm tone"],
+                        "summary": "Haru prefers quieter replies in shared rooms.",
+                        "evidence_ids": ["doc-1"]
+                    }
+                ],
+                "relations": [
+                    {
+                        "source_entity_key": "user_haru_duplicate",
+                        "target_entity_key": "preference_quiet_replies",
+                        "relation_type": "prefers",
+                        "fact": "Haru prefers quiet replies in shared rooms.",
+                        "confidence": 0.91,
+                        "evidence_ids": ["doc-1"]
+                    }
+                ]
+            }"#
+            .to_string(),
+        };
+        let pipeline = StructuredExtractionPipeline::new(
+            &provider,
+            GraphExtractionConfig {
+                model: "test-model",
+                temperature: 0.0,
+            },
+        );
+        let resolver = EntityResolver::new(&NoopEmbedding, &AlwaysDifferentJudge);
+
+        let result = pipeline
+            .extract_and_resolve(
+                &[document(
+                    "doc-1",
+                    "Shared-room preference",
+                    "Haru Morita, also called Haru, prefers quiet replies in shared rooms.",
+                )],
+                &resolver,
+            )
+            .await
+            .expect("extract and resolve GraphRAG JSON");
+
+        assert_eq!(result.entities.len(), 2);
+        let user = result
+            .entities
+            .iter()
+            .find(|entity| entity.entity_type == OntologyEntityType::User)
+            .expect("resolved user entity should remain");
+        assert_eq!(user.entity_key, "user_haru");
+        assert!(user.aliases.iter().any(|alias| alias == "Haru Morita"));
+        assert_eq!(result.relations[0].source_entity_key, "user_haru");
+        assert_eq!(
+            result.relations[0].target_entity_key,
+            "preference_quiet_replies"
+        );
+
+        let persisted = serde_json::to_string(&result).expect("GraphExtractionResult serializes");
+        let restored: GraphExtractionResult =
+            serde_json::from_str(&persisted).expect("GraphExtractionResult deserializes");
+        assert_eq!(restored, result);
     }
 }
