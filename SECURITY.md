@@ -152,8 +152,10 @@ If you believe you have found a security vulnerability in Asterel:
    <https://github.com/asterel-rs/asterel/security/advisories/new>.
    Repository maintainers must enable private vulnerability reporting for public
    external reports to use this path.
-3. If the private report form is not available, open a public issue asking for a
-   private security contact **without** including vulnerability details.
+3. If the private report form is not available, email **security@asterel.rs**
+   with the subject prefix `[security]`. If email bounces, open a public issue
+   asking for a private security contact **without** including vulnerability
+   details.
 4. Include the affected commit or version, configuration, channel/provider
    surface, reproduction steps, expected impact, and any logs or proof of
    concept that help reproduce the issue.

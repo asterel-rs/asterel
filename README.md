@@ -123,12 +123,13 @@ cargo run -- agent
 ## Core capabilities
 
 Status legend: **Default path** = implemented and release-gated for the current proof · **Beta** =
-feature-complete, API may move · **Alpha** = happy-path/extension maturity.
+feature-complete, API may move · **Alpha** = happy-path/extension maturity · **Stub** = compiles or
+loads, but does not yet have default-path product coverage.
 
 | Capability | Status | Summary |
 |---|---|---|
 | Companion runtime | Default path | Shared text companion loop with pickup, enrichment, finalization, and post-turn update |
-| Discord channel | Beta | Primary delivery surface with end-to-end product coverage |
+| Discord channel | Default path | Primary delivery surface with end-to-end product coverage |
 | Memory | Default path | PostgreSQL-first memory, Markdown fallback, autosave, recall, GraphRAG, review/correction/forget |
 | Persona | Default path | Relationship continuity, affect-aware tone calibration, public/private distance shaping |
 | Runtime harness | Default path | Response finalization, surface realization policy, safety/governance hooks |
@@ -140,8 +141,22 @@ feature-complete, API may move · **Alpha** = happy-path/extension maturity.
 | Subagents | Beta | Inline/spawned orchestration with cancellation and status tracking |
 | MCP bridge | Beta | Connect external MCP servers through the runtime boundary |
 | Desktop console | Alpha | Secondary Tauri/React operator console for governance, diagnostics, and memory/admin workflows |
-| Secondary channels | Alpha | Telegram, Slack, Matrix, and related adapters; not the primary product proof surface |
+| Secondary channels | Mixed | See the transport matrix below; only Discord is default-path today |
 | Tunnel | Alpha | Expose local services externally when configured |
+
+### Transport maturity matrix
+
+| Transport | Status | Notes |
+|---|---|---|
+| Discord | Default path | Release-gated text room/DM flow with shared companion turn coverage |
+| Gateway HTTP/WS | Default path | Operator and external ingress surface into the shared runtime |
+| Telegram | Alpha | Adapter surface exists; requires more end-to-end product coverage |
+| Slack | Alpha | Adapter surface exists; requires more end-to-end product coverage |
+| Matrix | Stub | Skeleton adapter; not a release-gated companion surface |
+| iMessage | Stub | Local/experimental adapter shape only |
+| Twitter/X | Stub | Experimental adapter shape only |
+| WhatsApp | Stub | Experimental adapter shape only |
+| IRC | Alpha | Lightweight adapter surface; not part of the default proof path |
 
 ## Runtime ownership
 
