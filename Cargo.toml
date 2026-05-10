@@ -142,6 +142,9 @@ taste = []
 postgres = ["dep:sqlx-core", "dep:sqlx-postgres", "dep:pgvector"]
 intent-classifier = ["dep:ort", "dep:tokenizers"]
 
+[lints.clippy]
+unwrap_used = "warn"
+
 [profile.dev]
 codegen-units = 256
 incremental   = true
