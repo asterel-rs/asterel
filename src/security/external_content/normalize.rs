@@ -293,7 +293,9 @@ fn decode_html_entities(s: &str) -> String {
         }
 
         if found_semi && let Some(decoded) = resolve_entity(&entity) {
-            out.push(decoded);
+            if !is_invisible(decoded) {
+                out.push(decoded);
+            }
             // Advance past entity + ';'
             for _ in 0..=entity.len() {
                 chars.next();
@@ -383,6 +385,13 @@ mod tests {
     #[test]
     fn decodes_numeric_html_entities() {
         let input = "&#x53;&#121;&#115;&#116;&#101;&#109; prompt";
+        let norm = normalize_detection(input);
+        assert_eq!(norm, "system prompt");
+    }
+
+    #[test]
+    fn strips_html_entity_encoded_invisibles() {
+        let input = "sys&#x2060;tem pro&#8288;mpt";
         let norm = normalize_detection(input);
         assert_eq!(norm, "system prompt");
     }
