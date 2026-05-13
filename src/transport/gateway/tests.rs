@@ -550,6 +550,43 @@ fn websocket_upgrade_accepts_valid_bearer_when_paired() {
     assert!(super::websocket::enforce_ws_upgrade_auth(&state, &headers).is_none());
 }
 
+#[test]
+fn websocket_upgrade_rejects_when_kill_switch_enabled() {
+    let token = "ws-token";
+    let mut state = make_test_state(PairingGuard::new(true, &[hash_token(token)], None));
+    state.access.defense_kill_switch = true;
+
+    let mut headers = HeaderMap::new();
+    headers.insert("Authorization", format!("Bearer {token}").parse().unwrap());
+
+    let (status, Json(body)) = super::websocket::enforce_ws_upgrade_auth(&state, &headers)
+        .expect("kill switch should reject websocket upgrade before auth succeeds");
+
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["code"], "kill_switch_enabled");
+}
+
+#[tokio::test]
+async fn webhook_rejects_when_kill_switch_enabled() {
+    let token = "webhook-token";
+    let mut state = make_test_state(PairingGuard::new(true, &[hash_token(token)], None));
+    state.access.defense_kill_switch = true;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+    headers.insert("Authorization", format!("Bearer {token}").parse().unwrap());
+
+    let response = handle_webhook(
+        State(state),
+        headers,
+        Bytes::from_static(br#"{"message":"hello"}"#),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+}
+
 #[tokio::test]
 async fn webhook_audit_mode_still_blocks_missing_bearer_when_paired() {
     let tmp = TempDir::new().unwrap();
@@ -613,6 +650,15 @@ fn policy_violation_reason_webhook_secret() {
 }
 
 #[test]
+fn policy_violation_enforce_kill_switch_returns_503() {
+    let (status, Json(body)) = defense::PolicyViolation::KillSwitchEnabled.enforce_response();
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["status"], 503);
+    assert_eq!(body["code"], "kill_switch_enabled");
+    assert_eq!(body["title"], "Service Unavailable");
+}
+
+#[test]
 fn policy_violation_enforce_bearer_returns_401() {
     let (status, Json(body)) = defense::PolicyViolation::MissingOrInvalidBearer.enforce_response();
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -647,7 +693,7 @@ fn policy_accounting_response_returns_429() {
 }
 
 #[test]
-fn effective_defense_mode_kill_switch_forces_audit() {
+fn effective_defense_mode_ignores_kill_switch_override() {
     let tmp = TempDir::new().unwrap();
     let mem: Arc<dyn Memory> = Arc::new(crate::core::memory::MarkdownMemory::new(tmp.path()));
     let calls = Arc::new(AtomicUsize::new(0));
@@ -677,7 +723,7 @@ fn effective_defense_mode_kill_switch_forces_audit() {
     };
     assert!(matches!(
         defense::effective_defense_mode(&state),
-        GatewayDefenseMode::Audit
+        GatewayDefenseMode::Enforce
     ));
 }
 

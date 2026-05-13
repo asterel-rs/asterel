@@ -404,7 +404,7 @@ async fn gateway_warn_mode_still_blocks_missing_bearer_token() {
 }
 
 #[tokio::test]
-async fn gateway_kill_switch_does_not_bypass_authentication() {
+async fn gateway_kill_switch_fails_closed_before_authentication() {
     let server = GatewayTestServer::start(
         true,
         vec![hash_token("token-abc")],
@@ -422,16 +422,67 @@ async fn gateway_kill_switch_does_not_bypass_authentication() {
         .send()
         .await
         .expect("kill-switch mode request should complete");
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     let body: Value = response
         .json()
         .await
         .expect("kill-switch response should be json");
-    assert!(
-        body.get("detail")
-            .and_then(Value::as_str)
-            .is_some_and(|msg| msg.contains("X-Webhook-Secret"))
-    );
+    assert_eq!(body.get("code"), Some(&Value::from("kill_switch_enabled")));
+}
+
+#[tokio::test]
+async fn gateway_kill_switch_fails_closed_for_admin_routes() {
+    let server = GatewayTestServer::start(
+        true,
+        vec![hash_token("token-abc")],
+        "gateway-shared-secret",
+        GatewayDefenseMode::Enforce,
+        true,
+    )
+    .await;
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(server.url("/admin/v1/openapi.json"))
+        .header("Authorization", "Bearer token-abc")
+        .header("x-asterel-tenant", "tenant-a")
+        .send()
+        .await
+        .expect("admin request should complete");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body: Value = response
+        .json()
+        .await
+        .expect("kill-switch response should be json");
+    assert_eq!(body.get("code"), Some(&Value::from("kill_switch_enabled")));
+}
+
+#[tokio::test]
+async fn gateway_kill_switch_fails_closed_for_pairing() {
+    let server = GatewayTestServer::start(
+        true,
+        vec![],
+        "gateway-shared-secret",
+        GatewayDefenseMode::Enforce,
+        true,
+    )
+    .await;
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(server.url("/pair"))
+        .header("X-Pairing-Code", "000000")
+        .send()
+        .await
+        .expect("pair request should complete");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body: Value = response
+        .json()
+        .await
+        .expect("kill-switch response should be json");
+    assert_eq!(body.get("code"), Some(&Value::from("kill_switch_enabled")));
 }
 
 #[test]

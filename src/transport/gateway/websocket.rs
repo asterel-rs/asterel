@@ -14,7 +14,9 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::autosave::{tenant_scoped_entity_id, tenant_workspace_dir};
-use super::defense::{PolicyViolation, must_enforce_auth_violation, policy_violation_response};
+use super::defense::{
+    PolicyViolation, kill_switch_response, must_enforce_auth_violation, policy_violation_response,
+};
 use super::events::{ClientMessage, GatewayAgentStateNotifier, ServerMessage};
 use super::handlers::turn_bridge::resolve_gateway_turn_session;
 use super::ws_stream_sink::WebSocketStreamSink;
@@ -147,6 +149,10 @@ pub(super) fn enforce_ws_upgrade_auth(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Option<(StatusCode, Json<serde_json::Value>)> {
+    if let Some(response) = kill_switch_response(state) {
+        return Some(response);
+    }
+
     if state.access.pairing.is_paired() {
         let auth = headers
             .get(header::AUTHORIZATION)

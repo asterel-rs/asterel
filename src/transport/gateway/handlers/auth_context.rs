@@ -5,7 +5,7 @@ use axum::response::Json;
 
 use super::super::AppState;
 use super::super::defense::{
-    PolicyViolation, must_enforce_auth_violation, policy_violation_response,
+    PolicyViolation, kill_switch_response, must_enforce_auth_violation, policy_violation_response,
 };
 use super::super::problem_details::problem_response;
 use super::tenant_scope;
@@ -135,6 +135,10 @@ pub(in super::super) fn enforce_request_auth(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Option<(StatusCode, Json<serde_json::Value>)> {
+    if let Some(response) = kill_switch_response(state) {
+        return Some(response);
+    }
+
     if state.access.pairing.is_paired() {
         let auth = headers
             .get(header::AUTHORIZATION)
@@ -197,6 +201,10 @@ pub(in super::super) fn require_paired_bearer_principal(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
+    if let Some(response) = kill_switch_response(state) {
+        return Err(response);
+    }
+
     if !state.access.pairing.is_paired() {
         return Err(problem_response(
             StatusCode::FORBIDDEN,

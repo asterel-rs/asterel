@@ -12,7 +12,9 @@ use super::super::autosave::{
     gateway_autosave_entity_id, gateway_runtime_policy_context, gateway_webhook_autosave_event,
     tenant_scoped_entity_id,
 };
-use super::super::defense::{apply_external_ingress_policy, policy_accounting_response};
+use super::super::defense::{
+    apply_external_ingress_policy, kill_switch_response, policy_accounting_response,
+};
 use super::super::problem_details::{problem_json, problem_response};
 use super::super::{
     A2A_CAPABILITY_TOOLS, A2A_CONTEXT_ENVELOPE_VERSION, A2A_PROTOCOL_VERSION, A2A_TEXT_OUTPUT_MODE,
@@ -692,6 +694,10 @@ pub(in super::super) async fn handle_pair(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
+    if let Some(response) = kill_switch_response(&state) {
+        return response;
+    }
+
     let code = headers
         .get("X-Pairing-Code")
         .and_then(|v| v.to_str().ok())
