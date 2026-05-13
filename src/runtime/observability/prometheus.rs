@@ -258,51 +258,41 @@ impl PrometheusObserver {
             self.memory_slo_violation_count.load(Ordering::Relaxed),
         );
 
-        push_labeled_counters(
-            &mut out,
-            "asterel_signal_ingest_total",
-            "source_kind",
-            self.signal_ingest_by_source
-                .lock()
-                .map(|guard| guard.clone())
-                .unwrap_or_default(),
-        );
-        push_labeled_counters(
-            &mut out,
-            "asterel_signal_dedup_drop_total",
-            "source_kind",
-            self.signal_dedup_drop_by_source
-                .lock()
-                .map(|guard| guard.clone())
-                .unwrap_or_default(),
-        );
-        push_labeled_counters(
-            &mut out,
-            "asterel_signal_tier_snapshot",
-            "tier",
-            self.signal_tier_snapshot
-                .lock()
-                .map(|guard| guard.clone())
-                .unwrap_or_default(),
-        );
-        push_labeled_counters(
-            &mut out,
-            "asterel_promotion_status_snapshot",
-            "status",
-            self.promotion_status_snapshot
-                .lock()
-                .map(|guard| guard.clone())
-                .unwrap_or_default(),
-        );
-        push_labeled_counters(
-            &mut out,
-            "asterel_post_turn_hook_total",
-            "hook_status",
-            self.post_turn_hook_by_status
-                .lock()
-                .map(|guard| guard.clone())
-                .unwrap_or_default(),
-        );
+        if let Ok(values) = self.signal_ingest_by_source.lock() {
+            push_labeled_counters(
+                &mut out,
+                "asterel_signal_ingest_total",
+                "source_kind",
+                &values,
+            );
+        }
+        if let Ok(values) = self.signal_dedup_drop_by_source.lock() {
+            push_labeled_counters(
+                &mut out,
+                "asterel_signal_dedup_drop_total",
+                "source_kind",
+                &values,
+            );
+        }
+        if let Ok(values) = self.signal_tier_snapshot.lock() {
+            push_labeled_counters(&mut out, "asterel_signal_tier_snapshot", "tier", &values);
+        }
+        if let Ok(values) = self.promotion_status_snapshot.lock() {
+            push_labeled_counters(
+                &mut out,
+                "asterel_promotion_status_snapshot",
+                "status",
+                &values,
+            );
+        }
+        if let Ok(values) = self.post_turn_hook_by_status.lock() {
+            push_labeled_counters(
+                &mut out,
+                "asterel_post_turn_hook_total",
+                "hook_status",
+                &values,
+            );
+        }
 
         out
     }
@@ -523,16 +513,16 @@ fn push_counter(out: &mut String, name: &str, value: u64) {
     let _ = writeln!(out, "{name} {value}");
 }
 
-fn push_labeled_counters(out: &mut String, name: &str, label: &str, values: HashMap<String, u64>) {
+fn push_labeled_counters(out: &mut String, name: &str, label: &str, values: &HashMap<String, u64>) {
     if values.is_empty() {
         return;
     }
 
     let _ = writeln!(out, "# TYPE {name} counter");
-    let mut values: Vec<_> = values.into_iter().collect();
-    values.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
+    let mut values: Vec<_> = values.iter().collect();
+    values.sort_by(|lhs, rhs| lhs.0.cmp(rhs.0));
     for (label_value, value) in values {
-        let label_value = escape_label_value(&label_value);
+        let label_value = escape_label_value(label_value);
         let _ = writeln!(out, "{name}{{{label}=\"{label_value}\"}} {value}");
     }
 }
