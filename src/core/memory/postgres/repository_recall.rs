@@ -18,6 +18,7 @@
 //!    reinforcement (recency + reliability nudge) for surfaced items.
 
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 use sqlx_core::query::query;
 use sqlx_core::row::Row;
@@ -81,6 +82,7 @@ impl PostgresMemory {
         &self,
         q: RecallQuery,
     ) -> PostgresMemoryResult<Vec<MemoryRecallEntry>> {
+        let total_started = Instant::now();
         q.enforce_policy().map_err(PostgresMemoryError::policy)?;
 
         if q.query.trim().is_empty() || q.limit == 0 {
@@ -89,49 +91,95 @@ impl PostgresMemory {
 
         let search_limit = buffered_search_limit(q.limit)?;
 
+        let search_started = Instant::now();
         let merged = self.search_and_merge(&q, search_limit).await?;
+        let search_ms = search_started.elapsed().as_millis();
 
         if merged.is_empty() {
+            tracing::debug!(
+                duration_ms = total_started.elapsed().as_millis(),
+                search_ms,
+                search_limit,
+                limit = q.limit,
+                graph_enabled = self.graph_retrieval_fusion_enabled,
+                "memory.postgres.recall.empty"
+            );
             return Ok(Vec::new());
         }
 
         let mut candidate_ids = Vec::with_capacity(merged.len());
         candidate_ids.extend(merged.iter().map(|result| result.id.clone()));
+        let candidate_count = candidate_ids.len();
 
         // Load metadata for all candidates
+        let metadata_started = Instant::now();
         let metadata_map = self
             .load_recall_metadata(q.entity_id.as_str(), &candidate_ids)
             .await?;
+        let metadata_ms = metadata_started.elapsed().as_millis();
 
+        let graph_started = Instant::now();
         let graph_scores = if self.graph_retrieval_fusion_enabled {
             self.graph_scores_for_candidates(q.entity_id.as_str(), &candidate_ids)
                 .await?
         } else {
             HashMap::new()
         };
+        let graph_ms = graph_started.elapsed().as_millis();
 
+        let scoring_started = Instant::now();
         let mut scored = self.score_candidates(
             merged,
             &metadata_map,
             &graph_scores,
             q.layer_filter.as_ref(),
         );
+        let scoring_ms = scoring_started.elapsed().as_millis();
 
+        let rerank_started = Instant::now();
         #[cfg(feature = "postgres")]
         self.apply_graph_activation_reranking(q.entity_id.as_str(), &mut scored)
             .await?;
+        let rerank_ms = rerank_started.elapsed().as_millis();
 
+        let sort_started = Instant::now();
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(q.limit);
         let scored: Vec<MemoryRecallEntry> = scored.into_iter().map(|(item, _)| item).collect();
+        let sort_truncate_ms = sort_started.elapsed().as_millis();
 
+        let access_started = Instant::now();
         if let Err(error) = self.bump_recall_access_counters(&scored).await {
             tracing::warn!(%error, "recall access tracking skipped");
         }
+        let access_counter_ms = access_started.elapsed().as_millis();
 
+        let reinforcement_started = Instant::now();
         if let Err(error) = self.reinforce_recall_hits(&scored).await {
             tracing::warn!(%error, "recall-hit reinforcement skipped");
         }
+        let reinforcement_ms = reinforcement_started.elapsed().as_millis();
+
+        tracing::debug!(
+            duration_ms = total_started.elapsed().as_millis(),
+            search_ms,
+            metadata_ms,
+            graph_ms,
+            scoring_ms,
+            rerank_ms,
+            sort_truncate_ms,
+            access_counter_ms,
+            reinforcement_ms,
+            candidate_count,
+            returned_count = scored.len(),
+            search_limit,
+            limit = q.limit,
+            metadata_rows = metadata_map.len(),
+            graph_score_count = graph_scores.len(),
+            graph_enabled = self.graph_retrieval_fusion_enabled,
+            layer_filter_present = q.layer_filter.is_some(),
+            "memory.postgres.recall.completed"
+        );
 
         Ok(scored)
     }
@@ -164,7 +212,11 @@ impl PostgresMemory {
         limit: usize,
         layer_filter: Option<&MemoryLayer>,
     ) -> PostgresMemoryResult<Vec<vector::ScoredResult>> {
+        let tier_started = Instant::now();
+        let layer_filter_present = layer_filter.is_some();
         let layer_filter = layer_filter.map(|layer| codec::layer_to_str(*layer));
+
+        let fts_started = Instant::now();
         let fts = self
             .fts_search_scoped(
                 q.entity_id.as_str(),
@@ -174,17 +226,27 @@ impl PostgresMemory {
                 layer_filter,
             )
             .await?;
+        let fts_ms = fts_started.elapsed().as_millis();
+        let fts_count = fts.len();
 
+        let embedding_started = Instant::now();
         let query_embedding = self
             .get_or_compute_embedding(EmbeddingRole::Query, &q.query)
             .await?;
+        let embedding_ms = embedding_started.elapsed().as_millis();
+        let embedding_available = query_embedding.is_some();
+
+        let vector_started = Instant::now();
         let vector = if let Some(ref emb) = query_embedding {
             self.vector_search_scoped(q.entity_id.as_str(), emb, node_tier, limit, layer_filter)
                 .await?
         } else {
             Vec::new()
         };
+        let vector_ms = vector_started.elapsed().as_millis();
+        let vector_count = vector.len();
 
+        let merge_started = Instant::now();
         let merged = if vector.is_empty() {
             fts.into_iter()
                 .map(|(id, score)| vector::ScoredResult {
@@ -214,6 +276,23 @@ impl PostgresMemory {
                 limit,
             )
         };
+        let merge_ms = merge_started.elapsed().as_millis();
+
+        tracing::debug!(
+            node_tier,
+            limit,
+            layer_filter_present,
+            fts_count,
+            vector_count,
+            merged_count = merged.len(),
+            embedding_available,
+            duration_ms = tier_started.elapsed().as_millis(),
+            fts_ms,
+            embedding_ms,
+            vector_ms,
+            merge_ms,
+            "memory.postgres.recall.search_tier"
+        );
 
         Ok(merged)
     }
@@ -256,10 +335,12 @@ impl PostgresMemory {
             q = q.bind(id);
         }
 
+        let started = Instant::now();
         let rows = q
             .fetch_all(&self.pool)
             .await
             .pg_query("load recall metadata")?;
+        let row_count = rows.len();
 
         let mut map = HashMap::with_capacity(rows.len());
         for row in rows {
@@ -291,6 +372,14 @@ impl PostgresMemory {
             };
             map.insert(meta.unit_id.clone(), meta);
         }
+
+        tracing::debug!(
+            candidate_count = candidate_ids.len(),
+            metadata_rows = row_count,
+            decoded_count = map.len(),
+            duration_ms = started.elapsed().as_millis(),
+            "memory.postgres.recall.metadata_loaded"
+        );
 
         Ok(map)
     }
@@ -330,10 +419,12 @@ impl PostgresMemory {
             q = q.bind(id);
         }
 
+        let started = Instant::now();
         let rows = q
             .fetch_all(&self.pool)
             .await
             .pg_query("load graph scores")?;
+        let row_count = rows.len();
 
         let mut raw_scores: HashMap<String, f64> = HashMap::with_capacity(rows.len());
         for row in rows {
@@ -360,6 +451,15 @@ impl PostgresMemory {
                 (uid, normalized)
             })
             .collect();
+
+        tracing::debug!(
+            candidate_count = candidate_ids.len(),
+            slot_id_count = slot_ids.len(),
+            graph_edge_rows = row_count,
+            graph_score_count = normalized.len(),
+            duration_ms = started.elapsed().as_millis(),
+            "memory.postgres.recall.graph_scores_loaded"
+        );
 
         Ok(normalized)
     }
@@ -463,7 +563,13 @@ impl PostgresMemory {
             return Ok(());
         }
 
+        let started = Instant::now();
         let mut visited = HashSet::new();
+        let mut entity_ids = Vec::new();
+        let mut slot_keys = Vec::new();
+        let mut recency_deltas = Vec::new();
+        let mut reliability_deltas = Vec::new();
+
         for item in items {
             let dedup_key = format!("{}::{}", item.entity_id, item.slot_key);
             if !visited.insert(dedup_key) {
@@ -475,23 +581,49 @@ impl PostgresMemory {
                 continue;
             }
 
-            query(
-                "UPDATE retrieval_units
-                 SET recency_score = LEAST(1.0, recency_score + $1),
-                     reliability = LEAST(1.0, reliability + $2)
-                 WHERE entity_id = $3
-                   AND slot_key = $4
-                   AND promotion_status IN ('promoted', 'candidate')
-                   AND visibility != 'secret'",
+            entity_ids.push(item.entity_id.as_str().to_owned());
+            slot_keys.push(item.slot_key.as_str().to_owned());
+            recency_deltas.push(recency_delta);
+            reliability_deltas.push(reliability_delta);
+        }
+
+        let attempted_count = entity_ids.len();
+        let updated_count = if attempted_count == 0 {
+            0
+        } else {
+            let result = query(
+                "UPDATE retrieval_units AS ru
+                 SET recency_score = LEAST(1.0, ru.recency_score + batch.recency_delta),
+                     reliability = LEAST(1.0, ru.reliability + batch.reliability_delta)
+                 FROM UNNEST(
+                     $1::text[],
+                     $2::text[],
+                     $3::float8[],
+                     $4::float8[]
+                 ) AS batch(entity_id, slot_key, recency_delta, reliability_delta)
+                 WHERE ru.entity_id = batch.entity_id
+                   AND ru.slot_key = batch.slot_key
+                   AND ru.promotion_status IN ('promoted', 'candidate')
+                   AND ru.visibility != 'secret'",
             )
-            .bind(recency_delta)
-            .bind(reliability_delta)
-            .bind(item.entity_id.as_str())
-            .bind(item.slot_key.as_str())
+            .bind(&entity_ids)
+            .bind(&slot_keys)
+            .bind(&recency_deltas)
+            .bind(&reliability_deltas)
             .execute(&self.pool)
             .await
             .pg_write("reinforce recall hit")?;
-        }
+            result.rows_affected()
+        };
+
+        tracing::debug!(
+            item_count = items.len(),
+            unique_count = visited.len(),
+            attempted_count,
+            updated_count,
+            duration_ms = started.elapsed().as_millis(),
+            "memory.postgres.recall.reinforced_hits"
+        );
 
         Ok(())
     }
@@ -511,7 +643,8 @@ impl PostgresMemory {
             .into_iter()
             .collect();
 
-        query(
+        let started = Instant::now();
+        let result = query(
             "UPDATE retrieval_units
              SET access_count = access_count + 1,
                  accessed_at = now()
@@ -521,6 +654,14 @@ impl PostgresMemory {
         .execute(&self.pool)
         .await
         .pg_write("update retrieval_units access counters after recall")?;
+
+        tracing::debug!(
+            item_count = items.len(),
+            unique_count = unit_ids.len(),
+            updated_count = result.rows_affected(),
+            duration_ms = started.elapsed().as_millis(),
+            "memory.postgres.recall.access_counters_bumped"
+        );
 
         Ok(())
     }
