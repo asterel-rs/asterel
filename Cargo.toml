@@ -140,7 +140,15 @@ mcp = ["dep:rmcp"]
 link-extraction = ["dep:scraper"]
 taste = []
 postgres = ["dep:sqlx-core", "dep:sqlx-postgres", "dep:pgvector"]
-intent-classifier = ["dep:ort", "dep:tokenizers"]
+intent-classifier = [
+    "dep:ort",
+    "dep:tokenizers",
+    "ort/std",
+    "ort/download-binaries",
+    "ort/tls-rustls",
+    "ort/copy-dylibs",
+    "ort/api-24",
+]
 
 [lints.clippy]
 unwrap_used = "warn"
