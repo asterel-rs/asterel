@@ -183,7 +183,7 @@ impl MemoryGovernance for DelayedConsolidationMemory {
 
 #[tokio::test]
 async fn memory_consolidation_is_idempotent() {
-    let temp = TempDir::new().unwrap();
+    let temp = TempDir::new().expect("test setup should succeed");
     let base: Arc<dyn Memory> = Arc::new(MarkdownMemory::new(temp.path()));
     let memory = CountingConsolidationMemory {
         inner: base,
@@ -204,18 +204,27 @@ async fn memory_consolidation_is_idempotent() {
             .with_layer(MemoryLayer::Working),
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
 
-    let checkpoint = memory.count_events(Some(entity_id)).await.unwrap();
+    let checkpoint = memory
+        .count_events(Some(entity_id))
+        .await
+        .expect("test setup should succeed");
     let input = ConsolidationInput::new(entity_id, checkpoint, "Question", "Answer");
-    let before = memory.count_events(Some(entity_id)).await.unwrap();
+    let before = memory
+        .count_events(Some(entity_id))
+        .await
+        .expect("test setup should succeed");
 
     let first = run_consolidation(&memory, temp.path(), &input)
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert_eq!(first.disposition, ConsolidationDisposition::Consolidated);
 
-    let after_first = memory.count_events(Some(entity_id)).await.unwrap();
+    let after_first = memory
+        .count_events(Some(entity_id))
+        .await
+        .expect("test setup should succeed");
     assert_eq!(after_first, before + 1);
     assert_eq!(
         memory.consolidation_append_count(),
@@ -257,13 +266,16 @@ async fn memory_consolidation_is_idempotent() {
 
     let second = run_consolidation(&memory, temp.path(), &input)
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert_eq!(
         second.disposition,
         ConsolidationDisposition::SkippedCheckpoint
     );
 
-    let after_second = memory.count_events(Some(entity_id)).await.unwrap();
+    let after_second = memory
+        .count_events(Some(entity_id))
+        .await
+        .expect("test setup should succeed");
     assert_eq!(after_second, after_first);
     assert_eq!(
         memory.consolidation_append_count(),
@@ -274,9 +286,9 @@ async fn memory_consolidation_is_idempotent() {
 
 #[tokio::test]
 async fn memory_consolidation_runs_async_nonblocking() {
-    let temp = TempDir::new().unwrap();
+    let temp = TempDir::new().expect("test setup should succeed");
     let workspace = temp.path().join("workspace");
-    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::create_dir_all(&workspace).expect("test setup should succeed");
 
     let config = Config {
         workspace_dir: workspace.clone(),
@@ -319,13 +331,13 @@ async fn memory_consolidation_runs_async_nonblocking() {
         user_message: "run turn quickly",
     })
     .await
-    .unwrap();
+    .expect("test setup should succeed");
 
     assert_eq!(response, "nonblocking consolidation response");
     let pending = base
         .resolve_slot(entity_id, CONSOLIDATION_SLOT_KEY)
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(
         pending.is_none(),
         "consolidation should still be pending when the turn returns"
@@ -335,7 +347,7 @@ async fn memory_consolidation_runs_async_nonblocking() {
     let consolidated = base
         .resolve_slot(entity_id, CONSOLIDATION_SLOT_KEY)
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(
         consolidated.is_some(),
         "async consolidation should complete"
@@ -344,9 +356,9 @@ async fn memory_consolidation_runs_async_nonblocking() {
 
 #[tokio::test]
 async fn memory_consolidation_worker_status_is_exposed() {
-    let temp = TempDir::new().unwrap();
+    let temp = TempDir::new().expect("test setup should succeed");
     let workspace = temp.path().join("workspace");
-    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::create_dir_all(&workspace).expect("test setup should succeed");
 
     let memory: Arc<dyn Memory> = Arc::new(MarkdownMemory::new(&workspace));
     let entity_id = "tenant-alpha:worker-status";
@@ -363,8 +375,11 @@ async fn memory_consolidation_worker_status_is_exposed() {
             .with_layer(MemoryLayer::Working),
         )
         .await
-        .unwrap();
-    let checkpoint = memory.count_events(Some(entity_id)).await.unwrap();
+        .expect("test setup should succeed");
+    let checkpoint = memory
+        .count_events(Some(entity_id))
+        .await
+        .expect("test setup should succeed");
     let input = ConsolidationInput::new(entity_id, checkpoint, "Question", "Answer");
 
     enqueue_consolidation_task(memory, workspace, input, Arc::new(NoopObserver));
@@ -395,10 +410,10 @@ async fn memory_consolidation_worker_status_is_exposed() {
 
 #[tokio::test]
 async fn memory_consolidation_failure_isolated() {
-    let temp = TempDir::new().unwrap();
+    let temp = TempDir::new().expect("test setup should succeed");
     let workspace = temp.path().join("workspace");
-    std::fs::create_dir_all(&workspace).unwrap();
-    std::fs::write(workspace.join("state"), "blocked").unwrap();
+    std::fs::create_dir_all(&workspace).expect("test setup should succeed");
+    std::fs::write(workspace.join("state"), "blocked").expect("test setup should succeed");
 
     let config = Config {
         workspace_dir: workspace.clone(),
@@ -435,7 +450,7 @@ async fn memory_consolidation_failure_isolated() {
         user_message: "keep answer path alive",
     })
     .await
-    .unwrap();
+    .expect("test setup should succeed");
 
     assert_eq!(response, "response survives consolidation failure");
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -443,7 +458,7 @@ async fn memory_consolidation_failure_isolated() {
     let consolidated = mem
         .resolve_slot(entity_id, CONSOLIDATION_SLOT_KEY)
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(
         consolidated.is_none(),
         "consolidation write should fail but turn response must succeed"

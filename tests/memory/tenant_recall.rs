@@ -78,7 +78,7 @@ async fn tenant_mode_disables_default_fallback() {
                 .with_policy_context(TenantPolicyContext::enabled("tenant-alpha")),
         )
         .await
-        .unwrap_err();
+        .expect_err("test should reject invalid input");
     assert_eq!(
         err.to_string(),
         format!("memory policy violation: {TENANT_DEFAULT_SCOPE_FALLBACK_DENIED_ERROR}"),
@@ -108,7 +108,7 @@ async fn tenant_recall_all_entrypoints_allow_same_tenant() {
                 .with_policy_context(policy_context.clone()),
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert_eq!(direct.len(), 1);
 
     let tool = MemoryRecallTool::new(memory.clone());
@@ -127,7 +127,7 @@ async fn tenant_recall_all_entrypoints_allow_same_tenant() {
             &ctx,
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(tool_result.success);
     assert!(tool_result.output.contains("Primary language is Rust"));
 
@@ -164,7 +164,7 @@ async fn tenant_recall_all_entrypoints_block_cross_scope() {
                 .with_policy_context(policy_context.clone()),
         )
         .await
-        .unwrap_err();
+        .expect_err("test should reject invalid input");
     assert_eq!(
         direct_err.to_string(),
         format!("memory policy violation: {TENANT_RECALL_CROSS_SCOPE_DENIED_ERROR}")
@@ -187,7 +187,7 @@ async fn tenant_recall_all_entrypoints_block_cross_scope() {
             &ctx,
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(!tool_result.success);
     assert_eq!(
         tool_result.error,
@@ -204,7 +204,7 @@ async fn tenant_recall_all_entrypoints_block_cross_scope() {
         ContextBudget::default(),
     )
     .await
-    .unwrap_err();
+    .expect_err("test should reject invalid input");
     assert_eq!(
         loop_err.to_string(),
         format!("memory policy violation: {TENANT_RECALL_CROSS_SCOPE_DENIED_ERROR}")
@@ -244,7 +244,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
             &ctx,
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(!cross_tool_result.success);
     assert_eq!(
         cross_tool_result.error,
@@ -267,7 +267,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
             &ctx,
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert!(!default_tool_result.success);
     assert_eq!(
         default_tool_result.error,
@@ -284,7 +284,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
         ContextBudget::default(),
     )
     .await
-    .unwrap_err();
+    .expect_err("test should reject invalid input");
     assert_eq!(
         loop_cross_err.to_string(),
         format!("memory policy violation: {TENANT_RECALL_CROSS_SCOPE_DENIED_ERROR}")
@@ -298,7 +298,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
         ContextBudget::default(),
     )
     .await
-    .unwrap_err();
+    .expect_err("test should reject invalid input");
     assert_eq!(
         loop_default_err.to_string(),
         format!("memory policy violation: {TENANT_DEFAULT_SCOPE_FALLBACK_DENIED_ERROR}")
@@ -326,7 +326,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
         user_message: "timezone",
     })
     .await
-    .unwrap_err();
+    .expect_err("test should reject invalid input");
     assert_eq!(
         runtime_cross_err.to_string(),
         format!(
@@ -348,7 +348,7 @@ async fn tenant_recall_e2e_cross_tenant_block() {
         user_message: "timezone",
     })
     .await
-    .unwrap_err();
+    .expect_err("test should reject invalid input");
     assert_eq!(
         runtime_default_err.to_string(),
         format!(

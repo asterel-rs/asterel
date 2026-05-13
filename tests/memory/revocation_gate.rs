@@ -88,7 +88,7 @@ async fn memory_revocation_gate_applies_in_context_builder() {
         ContextBudget::default(),
     )
     .await
-    .unwrap();
+    .expect("test setup should succeed");
 
     assert!(
         context.is_empty(),

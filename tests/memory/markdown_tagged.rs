@@ -61,10 +61,12 @@ async fn markdown_tagged_memory_roundtrip() {
             .with_evidence_uri("https://example.test/task-10"),
     );
 
-    mem.append_event(input).await.unwrap();
+    mem.append_event(input)
+        .await
+        .expect("test setup should succeed");
 
     let core = tmp.path().join("MEMORY.md");
-    let contents = std::fs::read_to_string(core).unwrap();
+    let contents = std::fs::read_to_string(core).expect("test setup should succeed");
     let entry_line = contents
         .lines()
         .find(|line| line.contains("entity-10:profile.preference"))
@@ -90,7 +92,7 @@ async fn markdown_tagged_memory_roundtrip() {
     let resolved = mem
         .resolve_slot("entity-10", "profile.preference")
         .await
-        .unwrap()
+        .expect("test setup should succeed")
         .expect("slot should resolve after roundtrip");
     assert_eq!(resolved.value, "Prefer semantic, layer-aware memory");
 
@@ -101,7 +103,7 @@ async fn markdown_tagged_memory_roundtrip() {
             5,
         ))
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     assert_eq!(recalled.len(), 1);
     assert_eq!(recalled[0].value, "Prefer semantic, layer-aware memory");
 }
@@ -127,7 +129,7 @@ async fn markdown_hard_delete_reports_degraded() {
             "task10-delete",
         )
         .await
-        .unwrap();
+        .expect("test setup should succeed");
     let after = memory_count(&mem).await;
 
     assert!(
@@ -139,7 +141,7 @@ async fn markdown_hard_delete_reports_degraded() {
     let resolved = mem
         .resolve_slot("entity-10", "sensitive_slot")
         .await
-        .unwrap()
+        .expect("test setup should succeed")
         .expect("hard forget should not remove data for markdown");
     assert_eq!(resolved.value, "API key: sk-abc-123");
 }

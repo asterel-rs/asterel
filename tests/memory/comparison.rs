@@ -44,7 +44,7 @@ async fn recall(mem: &dyn Memory, query: &str, limit: usize) -> Vec<(String, Str
 
 #[tokio::test]
 async fn compare_store_speed() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     let n = 100;
@@ -73,7 +73,7 @@ async fn compare_store_speed() {
 
 #[tokio::test]
 async fn compare_recall_quality() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     let entries = vec![
@@ -157,7 +157,7 @@ async fn compare_recall_quality() {
 
 #[tokio::test]
 async fn compare_recall_speed() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     let n = 200;
@@ -187,7 +187,7 @@ async fn compare_recall_speed() {
 
 #[tokio::test]
 async fn compare_persistence() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
 
     {
         let md = markdown_backend(tmp_md.path());
@@ -221,7 +221,7 @@ async fn compare_persistence() {
 
 #[tokio::test]
 async fn compare_upsert() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     store(&md, "pref", "likes Rust", MemoryCategory::Core).await;
@@ -242,7 +242,7 @@ async fn compare_upsert() {
 
 #[tokio::test]
 async fn compare_forget() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     store(&md, "secret", "API key: sk-1234", MemoryCategory::Core).await;
@@ -267,16 +267,25 @@ async fn compare_forget() {
 
 #[tokio::test]
 async fn compare_category_filter() {
-    let tmp_md = TempDir::new().unwrap();
+    let tmp_md = TempDir::new().expect("test setup should succeed");
     let md = markdown_backend(tmp_md.path());
 
     store(&md, "a", "core fact 1", MemoryCategory::Core).await;
     store(&md, "b", "core fact 2", MemoryCategory::Core).await;
     store(&md, "c", "daily note", MemoryCategory::Daily).await;
 
-    let md_a = md.resolve_slot("default", "a").await.unwrap();
-    let md_b = md.resolve_slot("default", "b").await.unwrap();
-    let md_c = md.resolve_slot("default", "c").await.unwrap();
+    let md_a = md
+        .resolve_slot("default", "a")
+        .await
+        .expect("test setup should succeed");
+    let md_b = md
+        .resolve_slot("default", "b")
+        .await
+        .expect("test setup should succeed");
+    let md_c = md
+        .resolve_slot("default", "c")
+        .await
+        .expect("test setup should succeed");
     let md_core = usize::from(md_a.is_some()) + usize::from(md_b.is_some());
     let md_daily = usize::from(md_c.is_some());
     let md_all = count(&md).await;
