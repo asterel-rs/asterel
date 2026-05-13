@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use asterel::config::Config;
@@ -43,6 +44,79 @@ impl Provider for FixedResponseProvider {
 struct DelayedConsolidationMemory {
     inner: Arc<dyn Memory>,
     delay: Duration,
+}
+
+struct CountingConsolidationMemory {
+    inner: Arc<dyn Memory>,
+    consolidation_appends: Arc<AtomicUsize>,
+}
+
+impl CountingConsolidationMemory {
+    fn consolidation_append_count(&self) -> usize {
+        self.consolidation_appends.load(Ordering::SeqCst)
+    }
+}
+
+impl MemoryWriter for CountingConsolidationMemory {
+    fn append_event(
+        &self,
+        input: MemoryEventInput,
+    ) -> Pin<Box<dyn Future<Output = MemoryResult<MemoryEvent>> + Send + '_>> {
+        Box::pin(async move {
+            if input.slot_key.as_str() == CONSOLIDATION_SLOT_KEY {
+                self.consolidation_appends.fetch_add(1, Ordering::SeqCst);
+            }
+            self.inner.append_event(input).await
+        })
+    }
+}
+
+impl MemoryReader for CountingConsolidationMemory {
+    fn recall_scoped(
+        &self,
+        query: RecallQuery,
+    ) -> Pin<Box<dyn Future<Output = MemoryResult<Vec<MemoryRecallEntry>>> + Send + '_>> {
+        Box::pin(async move { self.inner.recall_scoped(query).await })
+    }
+
+    fn resolve_slot<'a>(
+        &'a self,
+        entity_id: &'a str,
+        slot_key: &'a str,
+    ) -> Pin<Box<dyn Future<Output = MemoryResult<Option<BeliefSlot>>> + Send + 'a>> {
+        Box::pin(async move { self.inner.resolve_slot(entity_id, slot_key).await })
+    }
+}
+
+impl MemoryGovernance for CountingConsolidationMemory {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn health_check(&self) -> Pin<Box<dyn Future<Output = bool> + Send + '_>> {
+        Box::pin(async move { self.inner.health_check().await })
+    }
+
+    fn forget_slot<'a>(
+        &'a self,
+        entity_id: &'a str,
+        slot_key: &'a str,
+        mode: ForgetMode,
+        reason: &'a str,
+    ) -> Pin<Box<dyn Future<Output = MemoryResult<ForgetOutcome>> + Send + 'a>> {
+        Box::pin(async move {
+            self.inner
+                .forget_slot(entity_id, slot_key, mode, reason)
+                .await
+        })
+    }
+
+    fn count_events<'a>(
+        &'a self,
+        entity_id: Option<&'a str>,
+    ) -> Pin<Box<dyn Future<Output = MemoryResult<usize>> + Send + 'a>> {
+        Box::pin(async move { self.inner.count_events(entity_id).await })
+    }
 }
 
 impl MemoryWriter for DelayedConsolidationMemory {
@@ -110,7 +184,11 @@ impl MemoryGovernance for DelayedConsolidationMemory {
 #[tokio::test]
 async fn memory_consolidation_is_idempotent() {
     let temp = TempDir::new().unwrap();
-    let memory: Arc<dyn Memory> = Arc::new(MarkdownMemory::new(temp.path()));
+    let base: Arc<dyn Memory> = Arc::new(MarkdownMemory::new(temp.path()));
+    let memory = CountingConsolidationMemory {
+        inner: base,
+        consolidation_appends: Arc::new(AtomicUsize::new(0)),
+    };
     let entity_id = "tenant-alpha:user-1";
 
     memory
@@ -132,13 +210,18 @@ async fn memory_consolidation_is_idempotent() {
     let input = ConsolidationInput::new(entity_id, checkpoint, "Question", "Answer");
     let before = memory.count_events(Some(entity_id)).await.unwrap();
 
-    let first = run_consolidation(memory.as_ref(), temp.path(), &input)
+    let first = run_consolidation(&memory, temp.path(), &input)
         .await
         .unwrap();
     assert_eq!(first.disposition, ConsolidationDisposition::Consolidated);
 
     let after_first = memory.count_events(Some(entity_id)).await.unwrap();
     assert_eq!(after_first, before + 1);
+    assert_eq!(
+        memory.consolidation_append_count(),
+        1,
+        "first consolidation should append one semantic event"
+    );
 
     let consolidated_slot = memory
         .resolve_slot(entity_id, CONSOLIDATION_SLOT_KEY)
@@ -172,7 +255,7 @@ async fn memory_consolidation_is_idempotent() {
             .is_some_and(|msg| !msg.is_empty())
     );
 
-    let second = run_consolidation(memory.as_ref(), temp.path(), &input)
+    let second = run_consolidation(&memory, temp.path(), &input)
         .await
         .unwrap();
     assert_eq!(
@@ -182,6 +265,11 @@ async fn memory_consolidation_is_idempotent() {
 
     let after_second = memory.count_events(Some(entity_id)).await.unwrap();
     assert_eq!(after_second, after_first);
+    assert_eq!(
+        memory.consolidation_append_count(),
+        1,
+        "replaying the same checkpoint must not append a duplicate semantic event"
+    );
 }
 
 #[tokio::test]

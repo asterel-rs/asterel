@@ -420,6 +420,9 @@ pub async fn run_consolidation(
     }
 
     let entity_lock = consolidation_lock(input.entity_id.as_str());
+    // Intentionally serialize the full check -> append -> watermark sequence per entity.
+    // Releasing this before `append_event` would allow duplicate same-checkpoint semantic writes
+    // unless a separate pending-watermark protocol is introduced and tested.
     let _guard = entity_lock.lock().await;
     ensure_state_parent(workspace_dir)?;
     let mut state = load_state(workspace_dir)?;

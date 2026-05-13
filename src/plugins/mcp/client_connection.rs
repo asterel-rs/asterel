@@ -8,7 +8,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow};
 use rmcp::ServiceExt;
 use rmcp::model::CallToolRequestParams;
-use rmcp::service::{RoleClient, RunningService};
+use rmcp::service::{Peer, RoleClient, RunningService};
 use rmcp::transport::{ConfigureCommandExt, TokioChildProcess};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -17,6 +17,7 @@ use crate::plugins::mcp::bridge::from_rmcp_contents;
 use crate::plugins::mcp::content::ToolContent;
 
 type McpService = RunningService<RoleClient, ()>;
+type McpPeer = Peer<RoleClient>;
 
 const MCP_SAFE_ENV_VARS: &[&str] = &["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL"];
 
@@ -69,12 +70,9 @@ impl McpConnection {
     /// # Errors
     /// Returns an error if the connection is inactive or tool discovery fails.
     pub async fn list_tools(&self) -> Result<Vec<rmcp::model::Tool>> {
-        let service_guard = self.service.read().await;
-        let service = service_guard
-            .as_ref()
-            .ok_or_else(|| anyhow!("MCP connection '{}' is not active", self.name))?;
+        let peer = self.active_peer().await?;
 
-        let tools = service
+        let tools = peer
             .list_all_tools()
             .await
             .with_context(|| format!("failed to list tools for MCP server '{}'", self.name))?;
@@ -101,14 +99,11 @@ impl McpConnection {
         let mut request = CallToolRequestParams::new(tool_name.to_string());
         request.arguments = arguments;
 
-        let service_guard = self.service.read().await;
-        let service = service_guard
-            .as_ref()
-            .ok_or_else(|| anyhow!("MCP connection '{}' is not active", self.name))?;
+        let peer = self.active_peer().await?;
 
         let result = tokio::time::timeout(
             Duration::from_secs(self.max_call_seconds),
-            service.call_tool(request),
+            peer.call_tool(request),
         )
         .await
         .map_err(|_| {
@@ -127,6 +122,14 @@ impl McpConnection {
         })?;
 
         Ok(from_rmcp_contents(&result.content))
+    }
+
+    async fn active_peer(&self) -> Result<McpPeer> {
+        let service_guard = self.service.read().await;
+        let service = service_guard
+            .as_ref()
+            .ok_or_else(|| anyhow!("MCP connection '{}' is not active", self.name))?;
+        Ok(Peer::clone(service))
     }
 
     /// # Errors
@@ -149,5 +152,42 @@ impl McpConnection {
             service: Arc::new(RwLock::new(None)),
             max_call_seconds: 30,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn disconnected_list_tools_reports_not_active() {
+        let connection = McpConnection::disconnected_for_test("utility");
+
+        let error = connection
+            .list_tools()
+            .await
+            .expect_err("disconnected connection should not list tools");
+
+        assert!(
+            error.to_string().contains("not active"),
+            "inactive error should mention not active: {error:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn disconnected_call_tool_reports_not_active() {
+        let connection = McpConnection::disconnected_for_test("utility");
+
+        let error = connection
+            .call_tool("echo", json!({"message": "hello"}))
+            .await
+            .expect_err("disconnected connection should not call tools");
+
+        assert!(
+            error.to_string().contains("not active"),
+            "inactive error should mention not active: {error:#}"
+        );
     }
 }
