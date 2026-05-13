@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
+use axum::body::Bytes;
 use reqwest::header::HeaderMap;
 use reqwest::{Method, Response};
 use serde_json::json;
@@ -228,22 +229,33 @@ impl DiscordHttpClient {
         mime_type: &str,
     ) -> Result<()> {
         let url = format!("{API_BASE}/channels/{channel_id}/messages");
+        self.send_media_to_url(&url, bytes, filename, mime_type)
+            .await
+    }
+
+    async fn send_media_to_url(
+        &self,
+        url: &str,
+        bytes: Vec<u8>,
+        filename: &str,
+        mime_type: &str,
+    ) -> Result<()> {
         let filename_owned = filename.to_owned();
         let mime_type_owned = mime_type.to_owned();
+        let bytes: Arc<[u8]> = bytes.into();
 
-        let route_key = Self::bucket_key(&url);
+        let route_key = Self::bucket_key(url);
         self.wait_for_limits(&route_key).await;
 
         for attempt in 0..=MAX_RATE_LIMIT_RETRIES {
-            let part = reqwest::multipart::Part::bytes(bytes.clone())
-                .file_name(filename_owned.clone())
+            let part = Self::media_part(bytes.clone(), filename_owned.clone())
                 .mime_str(&mime_type_owned)
                 .context("set Discord media MIME type")?;
             let form = reqwest::multipart::Form::new().part("files[0]", part);
 
             let response = self
                 .client
-                .post(&url)
+                .post(url)
                 .header("Authorization", format!("Bot {}", self.bot_token))
                 .multipart(form)
                 .send()
@@ -281,6 +293,13 @@ impl DiscordHttpClient {
         }
 
         anyhow::bail!("Discord media request failed due to rate limiting")
+    }
+
+    fn media_part(bytes: Arc<[u8]>, filename: String) -> reqwest::multipart::Part {
+        let length = u64::try_from(bytes.len()).expect("media byte length must fit u64");
+        let body = reqwest::Body::from(Bytes::from_owner(bytes));
+
+        reqwest::multipart::Part::stream_with_length(body, length).file_name(filename)
     }
 
     /// Edit the content of an existing message.
@@ -960,7 +979,27 @@ impl DiscordHttpClient {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
     use super::DiscordHttpClient;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+    fn capture_request_body(
+        captured: Arc<Mutex<Vec<Vec<u8>>>>,
+    ) -> impl Fn(&Request) -> bool + Send + Sync + 'static {
+        move |request: &Request| {
+            captured
+                .lock()
+                .expect("captured request bodies lock should not be poisoned")
+                .push(request.body.clone());
+            true
+        }
+    }
+
+    fn body_contains(body: &[u8], needle: &[u8]) -> bool {
+        body.windows(needle.len()).any(|window| window == needle)
+    }
 
     #[test]
     fn extracts_rate_limit_bucket_key_from_url_path() {
@@ -1084,5 +1123,54 @@ mod tests {
         assert_eq!(client.bot_token, "token");
         assert!(client.buckets.lock().await.is_empty());
         assert!(client.global_reset_at.lock().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn send_media_retries_with_identical_bytes_and_filename() {
+        let server = MockServer::start().await;
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let route = "/api/v10/channels/123/messages";
+
+        Mock::given(method("POST"))
+            .and(path(route))
+            .and(capture_request_body(captured.clone()))
+            .respond_with(ResponseTemplate::new(429).insert_header("Retry-After", "0"))
+            .up_to_n_times(1)
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(route))
+            .and(capture_request_body(captured.clone()))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .expect(1)
+            .with_priority(2)
+            .mount(&server)
+            .await;
+
+        let payload = b"discord retry payload \0 \xff".to_vec();
+        let client = DiscordHttpClient::new("test-token");
+        client
+            .send_media_to_url(
+                &format!("{}{route}", server.uri()),
+                payload.clone(),
+                "retry.bin",
+                "application/octet-stream",
+            )
+            .await
+            .expect("second Discord media attempt should succeed");
+
+        let bodies = captured
+            .lock()
+            .expect("captured request bodies lock should not be poisoned");
+        assert_eq!(bodies.len(), 2);
+        assert_ne!(
+            bodies[0], bodies[1],
+            "multipart boundaries are rebuilt per attempt"
+        );
+        for body in bodies.iter() {
+            assert!(body_contains(body, &payload));
+            assert!(body_contains(body, b"retry.bin"));
+        }
     }
 }

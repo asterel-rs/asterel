@@ -181,3 +181,48 @@ async fn map_output_attachment_url(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EIGHT_MIB: usize = 8 * 1024 * 1024;
+
+    fn bytes_attachment(bytes: Vec<u8>) -> MediaAttachment {
+        MediaAttachment {
+            mime_type: "application/octet-stream".to_string(),
+            data: MediaContent::Bytes(bytes),
+            filename: Some("fixture.bin".to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn load_attachment_bytes_accepts_empty_in_memory_payload() {
+        let loaded = load_attachment_bytes(&bytes_attachment(Vec::new()))
+            .await
+            .expect("empty in-memory payload should load");
+
+        assert!(loaded.is_empty());
+    }
+
+    #[tokio::test]
+    async fn load_attachment_bytes_preserves_small_in_memory_payload() {
+        let payload = b"small media payload".to_vec();
+        let loaded = load_attachment_bytes(&bytes_attachment(payload.clone()))
+            .await
+            .expect("small in-memory payload should load");
+
+        assert_eq!(loaded, payload);
+    }
+
+    #[tokio::test]
+    async fn load_attachment_bytes_accepts_generated_8m_in_memory_payload() {
+        let payload = vec![0xA5; EIGHT_MIB];
+        let loaded = load_attachment_bytes(&bytes_attachment(payload))
+            .await
+            .expect("8 MiB in-memory payload should load under the 25 MiB limit");
+
+        assert_eq!(loaded.len(), EIGHT_MIB);
+        assert!(loaded.iter().all(|byte| *byte == 0xA5));
+    }
+}

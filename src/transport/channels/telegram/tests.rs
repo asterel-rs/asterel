@@ -1,9 +1,30 @@
 //! Unit tests for Telegram channel: name, API URL, user allowlist,
 //! media attachment construction, and capability flags.
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use super::*;
 use crate::transport::channels::traits::{Channel, MediaAttachment, MediaContent};
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+const EIGHT_MIB: usize = 8 * 1024 * 1024;
+
+fn capture_request_body(
+    captured: Arc<Mutex<Vec<Vec<u8>>>>,
+) -> impl Fn(&Request) -> bool + Send + Sync + 'static {
+    move |request: &Request| {
+        captured
+            .lock()
+            .expect("captured request bodies lock should not be poisoned")
+            .push(request.body.clone());
+        true
+    }
+}
+
+fn body_contains(body: &[u8], needle: &[u8]) -> bool {
+    body.windows(needle.len()).any(|window| window == needle)
+}
 
 async fn spawn_http_sequence(responses: Vec<String>) -> String {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -346,6 +367,133 @@ async fn telegram_send_document_bytes_with_caption() {
         .send_document_bytes("123456", file_bytes, "test.txt", None)
         .await;
     assert!(result.is_err()); // Network error expected
+}
+
+#[tokio::test]
+async fn telegram_send_document_bytes_retries_with_identical_bytes_and_filename() {
+    let server = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let route = "/bottest-token/sendDocument";
+
+    Mock::given(method("POST"))
+        .and(path(route))
+        .and(capture_request_body(captured.clone()))
+        .respond_with(ResponseTemplate::new(429).insert_header("Retry-After", "0"))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(route))
+        .and(capture_request_body(captured.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let payload = b"telegram retry payload \0 \xff".to_vec();
+    let ch =
+        TelegramChannel::new_with_api_base_url("test-token".into(), vec!["*".into()], server.uri());
+    ch.send_document_bytes("123456", payload.clone(), "retry.txt", Some("caption"))
+        .await
+        .expect("second Telegram media attempt should succeed");
+
+    let bodies = captured
+        .lock()
+        .expect("captured request bodies lock should not be poisoned");
+    assert_eq!(bodies.len(), 2);
+    assert_ne!(
+        bodies[0], bodies[1],
+        "multipart boundaries are rebuilt per attempt"
+    );
+    for body in bodies.iter() {
+        assert!(body_contains(body, &payload));
+        assert!(body_contains(body, b"retry.txt"));
+        assert!(body_contains(body, b"caption"));
+    }
+}
+
+#[tokio::test]
+async fn telegram_send_document_bytes_empty_payload_reaches_mock_server() {
+    let server = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let route = "/bottest-token/sendDocument";
+    Mock::given(method("POST"))
+        .and(path(route))
+        .and(capture_request_body(captured.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let ch =
+        TelegramChannel::new_with_api_base_url("test-token".into(), vec!["*".into()], server.uri());
+    ch.send_document_bytes("123456", Vec::new(), "empty.txt", None)
+        .await
+        .expect("empty Telegram media payload should be uploadable");
+
+    let bodies = captured
+        .lock()
+        .expect("captured request bodies lock should not be poisoned");
+    assert_eq!(bodies.len(), 1);
+    assert!(body_contains(&bodies[0], b"empty.txt"));
+}
+
+#[tokio::test]
+async fn telegram_send_document_bytes_small_payload_reaches_mock_server() {
+    let server = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let route = "/bottest-token/sendDocument";
+    Mock::given(method("POST"))
+        .and(path(route))
+        .and(capture_request_body(captured.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let payload = b"small media payload".to_vec();
+    let ch =
+        TelegramChannel::new_with_api_base_url("test-token".into(), vec!["*".into()], server.uri());
+    ch.send_document_bytes("123456", payload.clone(), "small.txt", None)
+        .await
+        .expect("small Telegram media payload should be uploadable");
+
+    let bodies = captured
+        .lock()
+        .expect("captured request bodies lock should not be poisoned");
+    assert_eq!(bodies.len(), 1);
+    assert!(body_contains(&bodies[0], &payload));
+    assert!(body_contains(&bodies[0], b"small.txt"));
+}
+
+#[tokio::test]
+async fn telegram_send_document_bytes_generated_8m_payload_reaches_mock_server() {
+    let server = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let route = "/bottest-token/sendDocument";
+    Mock::given(method("POST"))
+        .and(path(route))
+        .and(capture_request_body(captured.clone()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let payload = vec![0xA5; EIGHT_MIB];
+    let ch =
+        TelegramChannel::new_with_api_base_url("test-token".into(), vec!["*".into()], server.uri());
+    ch.send_document_bytes("123456", payload, "large-8m.bin", None)
+        .await
+        .expect("8 MiB Telegram media payload should be uploadable");
+
+    let bodies = captured
+        .lock()
+        .expect("captured request bodies lock should not be poisoned");
+    assert_eq!(bodies.len(), 1);
+    assert!(bodies[0].len() >= EIGHT_MIB);
+    assert!(body_contains(&bodies[0], b"large-8m.bin"));
 }
 
 #[tokio::test]

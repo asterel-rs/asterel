@@ -1,8 +1,10 @@
 //! Telegram Bot API low-level methods: multipart media upload, message
 //! sending, typing indicators, and file download URL resolution.
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Context;
+use axum::body::Bytes;
 use reqwest::multipart::{Form, Part};
 
 use super::TelegramChannel;
@@ -22,8 +24,9 @@ impl TelegramChannel {
         file_name: String,
         caption: Option<&str>,
     ) -> anyhow::Result<()> {
+        let file_bytes: Arc<[u8]> = file_bytes.into();
         for attempt in 0..=CHANNEL_API_MAX_RATE_LIMIT_RETRIES {
-            let part = Part::bytes(file_bytes.clone()).file_name(file_name.clone());
+            let part = Self::media_part(file_bytes.clone(), file_name.clone());
             let mut form = Form::new()
                 .text("chat_id", chat_id.to_string())
                 .part(media_field.to_string(), part);
@@ -53,6 +56,13 @@ impl TelegramChannel {
         }
 
         anyhow::bail!("Telegram {endpoint} failed due to rate limiting")
+    }
+
+    fn media_part(file_bytes: Arc<[u8]>, file_name: String) -> Part {
+        let length = u64::try_from(file_bytes.len()).expect("media byte length must fit u64");
+        let body = reqwest::Body::from(Bytes::from_owner(file_bytes));
+
+        Part::stream_with_length(body, length).file_name(file_name)
     }
 
     async fn send_media_by_url_json(
