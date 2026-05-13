@@ -550,6 +550,18 @@ fn websocket_upgrade_accepts_valid_bearer_when_paired() {
     assert!(super::websocket::enforce_ws_upgrade_auth(&state, &headers).is_none());
 }
 
+#[test]
+fn websocket_upgrade_rejects_when_kill_switch_enabled() {
+    let mut state = make_test_state(PairingGuard::new(false, &[], None));
+    state.access.defense_kill_switch = true;
+    let headers = HeaderMap::new();
+
+    let (status, Json(body)) = super::websocket::enforce_ws_upgrade_auth(&state, &headers)
+        .expect("kill switch must reject all websocket upgrades");
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["code"], "kill_switch_enabled");
+}
+
 #[tokio::test]
 async fn webhook_audit_mode_still_blocks_missing_bearer_when_paired() {
     let tmp = TempDir::new().unwrap();
@@ -590,6 +602,22 @@ async fn webhook_audit_mode_still_blocks_missing_bearer_when_paired() {
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn webhook_rejects_when_kill_switch_enabled() {
+    let mut state = make_test_state(PairingGuard::new(false, &[], None));
+    state.access.defense_kill_switch = true;
+
+    let response = handle_webhook(
+        State(state),
+        HeaderMap::new(),
+        Bytes::from_static(br#"{"message":"hello"}"#),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -647,7 +675,7 @@ fn policy_accounting_response_returns_429() {
 }
 
 #[test]
-fn effective_defense_mode_kill_switch_forces_audit() {
+fn effective_defense_mode_ignores_kill_switch_override() {
     let tmp = TempDir::new().unwrap();
     let mem: Arc<dyn Memory> = Arc::new(crate::core::memory::MarkdownMemory::new(tmp.path()));
     let calls = Arc::new(AtomicUsize::new(0));
@@ -677,7 +705,7 @@ fn effective_defense_mode_kill_switch_forces_audit() {
     };
     assert!(matches!(
         defense::effective_defense_mode(&state),
-        GatewayDefenseMode::Audit
+        GatewayDefenseMode::Enforce
     ));
 }
 

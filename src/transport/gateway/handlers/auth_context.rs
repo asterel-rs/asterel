@@ -135,6 +135,10 @@ pub(in super::super) fn enforce_request_auth(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Option<(StatusCode, Json<serde_json::Value>)> {
+    if state.access.defense_kill_switch {
+        return Some(PolicyViolation::KillSwitchEnabled.enforce_response());
+    }
+
     if state.access.pairing.is_paired() {
         let auth = headers
             .get(header::AUTHORIZATION)

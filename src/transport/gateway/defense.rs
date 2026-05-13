@@ -37,6 +37,7 @@ pub(super) fn apply_external_ingress_policy(
 /// Categories of gateway authentication and authorization failures.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum PolicyViolation {
+    KillSwitchEnabled,
     MissingOrInvalidBearer,
     MissingOrInvalidWebhookSecret,
     NoAuthConfigured,
@@ -54,6 +55,7 @@ impl PolicyViolation {
     /// Returns a machine-readable reason string for this violation.
     pub(super) fn reason(self) -> &'static str {
         match self {
+            Self::KillSwitchEnabled => "kill_switch_enabled",
             Self::MissingOrInvalidBearer => "missing_or_invalid_bearer",
             Self::MissingOrInvalidWebhookSecret => "missing_or_invalid_webhook_secret",
             Self::NoAuthConfigured => "no_auth_configured",
@@ -63,6 +65,12 @@ impl PolicyViolation {
     /// Builds an HTTP error response for this policy violation.
     pub(super) fn enforce_response(self) -> (StatusCode, Json<serde_json::Value>) {
         match self {
+            Self::KillSwitchEnabled => problem_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "kill_switch_enabled",
+                "Service Unavailable",
+                "Service unavailable — gateway emergency kill switch is enabled.",
+            ),
             Self::MissingOrInvalidBearer => problem_response(
                 StatusCode::UNAUTHORIZED,
                 "missing_or_invalid_bearer",
@@ -85,14 +93,9 @@ impl PolicyViolation {
     }
 }
 
-/// Returns the active defense mode, falling back to Audit when the
-/// kill switch is engaged.
+/// Returns the active defense mode.
 pub(super) fn effective_defense_mode(state: &AppState) -> GatewayDefenseMode {
-    if state.access.defense_kill_switch {
-        GatewayDefenseMode::Audit
-    } else {
-        state.access.defense_mode
-    }
+    state.access.defense_mode
 }
 
 /// Applies the defense mode to a non-auth policy violation, returning
