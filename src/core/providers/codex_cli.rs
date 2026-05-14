@@ -712,13 +712,13 @@ printf '<tool_call>{"name":"shell","arguments":{"command":"ls"}}</tool_call>' > 
         let dir = write_stub(
             r#"#!/bin/sh
 cat >/dev/null
-sleep 5
+sleep 60
 "#,
         );
         let provider = CodexCliProvider::with_executable_timeout(
             dir.path().join("codex-stub.sh").display().to_string(),
             None,
-            Duration::from_millis(50),
+            Duration::from_secs(1),
         );
 
         let err = provider
