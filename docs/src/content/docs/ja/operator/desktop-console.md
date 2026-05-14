@@ -26,7 +26,7 @@ pnpm --dir desktop tauri dev
 - session review と transcript inspection
 - 記憶レビュー、訂正、忘却、self-amendment approval workflow
 - exposure diagnostics と governance check
-- runtime、channel、scheduler の health
+- runtime、channel、scheduler の health（durable cron state は PostgreSQL backed）
 - auth、provider、skill、cron、tenant / operator settings
 
 ## 何に使わないか

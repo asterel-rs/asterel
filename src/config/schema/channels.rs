@@ -325,7 +325,7 @@ pub struct DiscordPickupPolicyConfig {
     #[serde(default)]
     pub max_unsummoned_replies_per_hour: u32,
     /// Minimum seconds that must elapse between consecutive unsummoned replies
-    /// in the same channel to prevent flooding. Default: 120.
+    /// in the same channel to prevent flooding. Default: 600.
     #[serde(default = "default_discord_min_gap_seconds")]
     pub min_gap_seconds: u64,
 }

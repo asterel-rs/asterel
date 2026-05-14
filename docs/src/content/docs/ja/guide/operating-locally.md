@@ -26,6 +26,8 @@ cargo run -- channel list
 
 `doctor --repair` は安全なローカル修復のためだけに使います。問題が外部サービス、認証情報、データベースにある場合は、ランタイムを疑う前に依存先を直します。
 
+durable な cron / scheduler state を使う運用では、`ASTEREL_POSTGRES_URL` または `memory.postgres_url` による PostgreSQL 設定が必要です。その状態がない場合、read-only の cron status は scheduled jobs が動いているふりをせず、unavailable / degraded として報告します。
+
 ## ローカルゲートウェイモデル
 
 ゲートウェイは既定で `127.0.0.1:3000` に bind します。これは意図的です。管理ルートは公開ルートではなく、`/admin/v1/*` にはペアリングとテナントスコープが必要です。

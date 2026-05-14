@@ -33,7 +33,9 @@ allow_public_bind = false
 
 ## Public routes と admin routes
 
-Public routes には health、readiness、pairing、gateway OpenAPI、webhook、A2A、companion surface、WebSocket entrypoint が含まれます。Admin routes は `/admin/v1/*` の下にあり、pairing と明示的な tenant scope が必要です。
+Public routes には health、readiness、pairing、gateway OpenAPI、webhook、A2A、companion surface、WebSocket entrypoint が含まれます。`whatsapp` feature が有効な場合は、Meta webhook verification / delivery のために `/whatsapp` も登録されます。
+
+Admin routes は `/admin/v1/*` の下にあり、pairing と明示的な tenant scope が必要です。tenant-scoped upload は `/admin/v1/uploads` で扱います。
 
 ```text
 Authorization: Bearer <token>

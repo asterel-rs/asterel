@@ -38,8 +38,10 @@ runtime. Do not turn a local admin API into an unauthenticated public service.
 ## Public routes vs admin routes
 
 Public routes include health, readiness, pairing, gateway OpenAPI, webhook, A2A,
-companion surface, and WebSocket entrypoints. Admin routes live under
-`/admin/v1/*` and require pairing plus explicit tenant scope.
+companion surface, and WebSocket entrypoints. When the `whatsapp` feature is
+enabled, `/whatsapp` is also registered for Meta webhook verification and
+delivery. Admin routes live under `/admin/v1/*` and require pairing plus
+explicit tenant scope, including tenant-scoped uploads at `/admin/v1/uploads`.
 
 ```text
 Authorization: Bearer <token>

@@ -39,4 +39,4 @@ Asterel は Discord 優先、テキスト優先です。コンパニオン・ラ
 
 ## ここにはまだ置かないもの
 
-すべての CLI サブコマンド、ゲートウェイルート、設定キーの完全なリファレンスは [repository README](https://github.com/asterel-rs/asterel/blob/main/README.md) にあります。このサイトは一般向けの導線を前に出しつつ、研究品質の証拠文書を別の導線として残します。
+[repository README](https://github.com/asterel-rs/asterel/blob/main/README.md) は、プロダクト範囲、よく使うコマンド、主要なランタイム表面を把握するための最短の入口です。CLI、ルート、設定キーの網羅的な正本は source、generated OpenAPI contract、config schema です。このサイトは一般向けの導線を前に出しつつ、研究品質の証拠文書を別の導線として残します。

@@ -28,7 +28,7 @@ Use the desktop console for:
 - session review and transcript inspection;
 - memory review, correction, forget, and self-amendment approval workflows;
 - exposure diagnostics and governance checks;
-- runtime, channel, and scheduler health;
+- runtime, channel, and scheduler health, with durable cron state backed by PostgreSQL;
 - auth, provider, skill, cron, and tenant/operator settings.
 
 ## What it is not for

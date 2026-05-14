@@ -39,4 +39,4 @@ Asterel is Discord-first and text-first. The companion runtime, gateway, memory,
 
 ## What you will not find (yet)
 
-Full reference for every CLI subcommand, gateway route, and config key lives in the [repository README](https://github.com/asterel-rs/asterel/blob/main/README.md). This site keeps the public guide readable first, while preserving research-quality evidence in a separate track.
+The [repository README](https://github.com/asterel-rs/asterel/blob/main/README.md) is the quickest orientation for product scope, common commands, and the main runtime surfaces. Source, generated OpenAPI contracts, and config schema remain the exact reference for exhaustive command, route, and configuration details; this site keeps the public guide readable first while preserving research-quality evidence in a separate track.

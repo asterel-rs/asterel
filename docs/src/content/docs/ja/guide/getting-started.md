@@ -1,9 +1,9 @@
 ---
 title: 始め方
-description: インストールから動くコンパニオンまでの最短導線。完全なリファレンスは repository README が正本です。
+description: インストールから動くコンパニオンまでの最短導線。README は主要な導線で、網羅的な詳細は source と generated contract が正本です。
 ---
 
-このページは、ローカルで有用なところまで動かす最短の導線です。細かなコマンド、ルート、設定キーの完全なリファレンスは [repository README](https://github.com/asterel-rs/asterel/blob/main/README.md) にあります。
+このページは、ローカルで有用なところまで動かす最短の導線です。[repository README](https://github.com/asterel-rs/asterel/blob/main/README.md) はプロダクト範囲とよく使うコマンドの主要な入口です。細かなルートや設定キーの正本は source と generated contract です。
 
 ## インストール（macOS/Linux）
 

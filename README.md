@@ -168,7 +168,7 @@ Post-turn: relationship update → message autosave → memory consolidation
 ```
 
 - Transport-facing turn execution: `src/runtime/services/companion_turn.rs`
-- Pre/post-turn enrichment owner: `src/core/agent/turn_enrichment.rs`
+- Pre/post-turn enrichment owner: `src/core/agent/turn_enrichment/`
 - Runtime composition root: `src/runtime/services/mod.rs`
 
 This keeps CLI, gateway, desktop/operator surfaces, and channel adapters from inventing separate
@@ -206,6 +206,7 @@ Public routes:
 - `GET /a2a/v1/tasks/{task_id}`
 - `POST /a2a/v1/tasks/{task_id}/cancel`
 - `POST /webhook`
+- `GET /whatsapp`, `POST /whatsapp` when built with the `whatsapp` feature
 - `POST /companion/context/ingest`
 - `POST /companion/multimodal/ingest`
 - `GET /ws`
@@ -221,7 +222,7 @@ Companion surface routes:
 
 Admin API (`/admin/v1/*`): runtime, usage, mood, activity timeline, sessions, governance,
 memory review, companion approvals, auth profiles, channels, skills, cron, companion admin, tenant
-management, and `GET /admin/v1/openapi.json`.
+management, tenant-scoped uploads, and `GET /admin/v1/openapi.json`.
 
 Optional trust-signal headers for external ingress (`POST /webhook`, `POST /a2a/v1/messages`):
 
@@ -299,9 +300,14 @@ Reference template: [`.env.example`](.env.example)
 | `ASTEREL_MODEL` | Default model |
 | `ASTEREL_TEMPERATURE` | Sampling temperature |
 | `ASTEREL_WORKSPACE` | Workspace path override |
+| `ASTEREL_POSTGRES_URL` | PostgreSQL memory/scheduler connection URL |
 | `ASTEREL_GATEWAY_HOST` | Gateway host override |
 | `ASTEREL_GATEWAY_PORT` | Gateway port override |
 | `ASTEREL_GATEWAY_MAX_BODY_SIZE_BYTES` | Max request body size for the gateway |
+| `ASTEREL_GATEWAY_ALLOW_PUBLIC_BIND` | Explicit opt-in for non-local gateway binds |
+| `ASTEREL_INTENT_CLASSIFIER_ENABLED` | Enable the optional intent classifier |
+| `ASTEREL_INTENT_CLASSIFIER_THRESHOLD` | Intent classifier threshold override |
+| `ASTEREL_INTENT_CLASSIFIER_MODELS_DIR` | Intent classifier model directory override |
 
 Security/ingress tuning example (`~/.asterel/config.toml`):
 
@@ -310,10 +316,6 @@ Security/ingress tuning example (`~/.asterel/config.toml`):
 # Removes per-channel autonomy/tool restrictions.
 # Global security policy is still enforced.
 high_freedom_all_channels = true
-
-[security.perimeter]
-enforce_uniform_inner_freedom = true
-supported_targets = ["host", "docker", "kubernetes"]
 
 [security.external_knowledge_trust]
 enabled = true
@@ -348,7 +350,7 @@ etc.) when no explicit override matches.
 - `status` — show runtime/system status
 - `eval` — run evaluation suites (baseline, replay, memory-bench)
 - `model` — update default model/provider
-- `cron` — manage scheduled tasks
+- `cron` — manage scheduled tasks; durable scheduler state requires PostgreSQL configuration
 - `channel` — list/start/doctor channels
 - `integrations` — inspect integrations
 - `auth` — manage auth profiles and OAuth import/status
@@ -421,8 +423,10 @@ cargo build-minimal
 cargo check-all
 cargo coverage
 cargo coverage-tarpaulin
+cargo fuzz-smoke
 cargo ntest
 cargo ntest-ci
+cargo ntest-supported-features
 ```
 
 Enable the repo hook locally:

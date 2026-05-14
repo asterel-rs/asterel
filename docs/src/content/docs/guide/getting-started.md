@@ -5,7 +5,9 @@ description: The shortest useful path from install to a running companion. For f
 
 This page is the shortest path to a useful local run. It stays practical on
 purpose; the [repository README](https://github.com/asterel-rs/asterel/blob/main/README.md)
-remains the full reference for every command, route, and configuration key.
+remains the main orientation for product scope and common commands, while source
+and generated contracts are authoritative for exhaustive route and configuration
+details.
 
 ## Install (macOS/Linux)
 

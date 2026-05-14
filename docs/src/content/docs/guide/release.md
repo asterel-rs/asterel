@@ -31,8 +31,17 @@ cosign verify-blob \
 
 ## Before tagging
 
+Use `scripts/release/human_like_release_gate.sh` as the source of truth for a
+release-quality local gate. It currently runs:
+
 - `cargo fmt -- --check`
 - `cargo clippy -- -D warnings`
+- `cargo check-all`
 - `cargo test`
-- Docs build, if documentation changed
-- Confirm `CHANGELOG.md` has release notes for the tag
+- `cargo fuzz-smoke`
+- `cargo audit`
+- deterministic `eval baseline` pre/post evidence comparison
+- bad-turn `eval replay` evidence checks
+
+Also run the docs build if documentation changed and confirm `CHANGELOG.md` has
+release notes for the tag.

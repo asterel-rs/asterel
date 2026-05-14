@@ -23,7 +23,7 @@ Most operators only need to understand five areas first.
 | Channels | Discord and secondary adapters | Determines which inbound events can become companion turns |
 | Security | trust scoring, intent classification, tool policy | Determines what untrusted ingress and tools are allowed to do |
 
-The README remains the exhaustive reference for command names, route inventory, and environment variables. This page explains how to reason about the config.
+The README remains the main orientation for command names, route inventory, and common environment variables. Source schema, `.env.example`, and generated contracts remain authoritative for exhaustive configuration details. This page explains how to reason about the config.
 
 ## Provider settings
 

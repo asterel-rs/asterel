@@ -26,6 +26,11 @@ cargo run -- channel list
 
 Use `doctor --repair` only for safe local repairs. If the issue is an external service, credential, or database, fix that dependency rather than treating the runtime as broken.
 
+Cron and scheduler operations that persist durable job state require PostgreSQL
+configuration through `ASTEREL_POSTGRES_URL` or `memory.postgres_url`. Without
+that state, read-only cron status can report unavailable/degraded instead of
+pretending scheduled jobs are active.
+
 ## Local gateway model
 
 The gateway defaults to `127.0.0.1:3000`. That is intentional. Admin routes are not public routes, and `/admin/v1/*` requires pairing plus tenant scope:

@@ -29,8 +29,15 @@ cosign verify-blob \
 
 ## タグを打つ前に
 
+release-quality なローカル gate の正本は `scripts/release/human_like_release_gate.sh` です。現在は次を実行します。
+
 - `cargo fmt -- --check`
 - `cargo clippy -- -D warnings`
+- `cargo check-all`
 - `cargo test`
-- ドキュメントを変更した場合は docs build
-- `CHANGELOG.md` に対象タグのリリースノートがあることを確認する
+- `cargo fuzz-smoke`
+- `cargo audit`
+- deterministic な `eval baseline` の pre/post evidence 比較
+- bad-turn `eval replay` evidence check
+
+あわせて、ドキュメントを変更した場合は docs build を実行し、`CHANGELOG.md` に対象タグのリリースノートがあることを確認してください。
