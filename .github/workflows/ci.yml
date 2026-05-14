@@ -200,6 +200,8 @@ jobs:
       - name: Verify protoc
         run: protoc --version
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
       - name: Build
         run: cargo build --release --verbose
 
