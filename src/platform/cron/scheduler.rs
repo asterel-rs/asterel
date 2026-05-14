@@ -8,7 +8,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::{DateTime, Duration as ChronoDuration, Timelike, Utc};
+use std::process::Stdio;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
+use tokio::sync::watch;
+use tokio::task::JoinHandle;
 use tokio::time::{self, Duration};
 
 use crate::config::Config;
@@ -42,6 +46,9 @@ const TREND_AGGREGATION_TOP_ITEMS: usize = 5;
 const INGEST_API_MIN_INTERVAL_SECONDS: i64 = 10;
 const INGEST_RSS_MIN_INTERVAL_SECONDS: i64 = 30;
 const X_RECENT_SEARCH_ENDPOINT: &str = "https://api.twitter.com/2/tweets/search/recent";
+const USER_SHELL_TIMEOUT_SECONDS: u64 = 30;
+const USER_SHELL_OUTPUT_LIMIT_BYTES: usize = 64 * 1024;
+const USER_SHELL_OUTPUT_DRAIN_SECONDS: u64 = 2;
 fn scheduler_breaker_enabled(config: &Config) -> bool {
     config.reliability.scheduler_failure_budget > 0
         && config.reliability.scheduler_breaker_cooldown_secs > 0
@@ -138,6 +145,18 @@ fn in_scheduler_hours(config: &Config, now: DateTime<Utc>) -> bool {
 /// Returns an error only on unrecoverable startup failures;
 /// individual job errors are logged and retried.
 pub async fn run(config: Arc<Config>) -> Result<()> {
+    let (_shutdown_tx, shutdown_rx) = watch::channel(false);
+    run_until_shutdown(config, shutdown_rx).await
+}
+
+/// Runs the cron scheduler poll loop until a shutdown signal is observed.
+///
+/// In-flight jobs are allowed to finish before the signal is honored so reload
+/// does not abort a job after its side effect but before reschedule persistence.
+pub async fn run_until_shutdown(
+    config: Arc<Config>,
+    mut shutdown: watch::Receiver<bool>,
+) -> Result<()> {
     let poll_secs = config.reliability.scheduler_poll_secs.max(MIN_POLL_SECONDS);
     let mut interval = time::interval(Duration::from_secs(poll_secs));
     let security = SecurityPolicy::from_config_runtime(
@@ -149,7 +168,17 @@ pub async fn run(config: Arc<Config>) -> Result<()> {
     crate::runtime::diagnostics::health::mark_component_ok("scheduler");
 
     loop {
-        interval.tick().await;
+        tokio::select! {
+            _ = interval.tick() => {}
+            changed = shutdown.changed() => {
+                if changed.is_ok() && *shutdown.borrow() {
+                    break;
+                }
+            }
+        }
+        if *shutdown.borrow() {
+            break;
+        }
         crate::runtime::diagnostics::health::mark_component_ok("scheduler");
         let now = Utc::now();
 
@@ -211,8 +240,13 @@ pub async fn run(config: Arc<Config>) -> Result<()> {
                 );
                 tracing::warn!("Failed to persist scheduler run+breaker state: {e}");
             }
+            if *shutdown.borrow() {
+                break;
+            }
         }
     }
+
+    Ok(())
 }
 
 async fn execute_job_with_retry(
@@ -315,34 +349,284 @@ async fn run_user_job_command(
         return (false, output);
     }
 
+    run_bounded_user_shell_command(&job.command, &config.workspace_dir).await
+}
+
+async fn run_bounded_user_shell_command(
+    command: &str,
+    current_dir: &std::path::Path,
+) -> (bool, String) {
+    run_bounded_user_shell_command_with_limits(
+        command,
+        current_dir,
+        Duration::from_secs(USER_SHELL_TIMEOUT_SECONDS),
+        USER_SHELL_OUTPUT_LIMIT_BYTES,
+    )
+    .await
+}
+
+async fn run_bounded_user_shell_command_with_limits(
+    command: &str,
+    current_dir: &std::path::Path,
+    timeout: Duration,
+    output_limit: usize,
+) -> (bool, String) {
     // Use `-c` (not `-lc`) to avoid loading the login shell profile,
     // and clear the environment to match ShellTool's hardened execution model.
-    let output = Command::new("sh")
+    let mut shell = Command::new("sh");
+    shell
         .arg("-c")
-        .arg(&job.command)
-        .current_dir(&config.workspace_dir)
+        .arg(command)
+        .current_dir(current_dir)
         .env_clear()
         .env("PATH", std::env::var("PATH").unwrap_or_default())
         .env("HOME", std::env::var("HOME").unwrap_or_default())
         .env("LANG", std::env::var("LANG").unwrap_or_default())
-        .output()
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    configure_shell_process_group(&mut shell);
+    let child = shell.spawn();
+
+    let mut child = match child {
+        Ok(child) => child,
+        Err(e) => {
+            return (
+                false,
+                format!("{ROUTE_MARKER_USER_SHELL}\nspawn error: {e}"),
+            );
+        }
+    };
+
+    let process_id = child.id();
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let stdout_task = tokio::spawn(async move { read_limited_output(stdout, output_limit).await });
+    let stderr_task = tokio::spawn(async move { read_limited_output(stderr, output_limit).await });
+
+    let wait_result = time::timeout(timeout, child.wait()).await;
+    let (success, status_line, timed_out) = match wait_result {
+        Ok(Ok(status)) => (status.success(), format!("status={status}"), false),
+        Ok(Err(error)) => (false, format!("wait error: {error}"), false),
+        Err(_) => {
+            terminate_shell_process_group(process_id);
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            (false, format!("timeout after {}s", timeout.as_secs()), true)
+        }
+    };
+    terminate_shell_process_group(process_id);
+
+    let drain_timeout = Duration::from_secs(USER_SHELL_OUTPUT_DRAIN_SECONDS).min(timeout);
+    let stdout = await_limited_output_task(stdout_task, "stdout", drain_timeout, process_id).await;
+    let stderr = await_limited_output_task(stderr_task, "stderr", drain_timeout, process_id).await;
+
+    let mut combined = format!(
+        "{ROUTE_MARKER_USER_SHELL}\n{status_line}\nstdout:\n{}\nstderr:\n{}",
+        stdout.text.trim(),
+        stderr.text.trim()
+    );
+    if stdout.truncated || stderr.truncated {
+        combined.push_str("\noutput_truncated=true");
+    }
+    if timed_out {
+        combined.push_str("\ntimeout=true");
+    }
+    if let Some(error) = stdout.read_error.as_deref() {
+        combined.push_str(&format!("\nstdout_read_error={error}"));
+    }
+    if let Some(error) = stderr.read_error.as_deref() {
+        combined.push_str(&format!("\nstderr_read_error={error}"));
+    }
+
+    (success, combined)
+}
+
+#[cfg(unix)]
+fn configure_shell_process_group(command: &mut Command) {
+    command.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn configure_shell_process_group(_command: &mut Command) {}
+
+#[cfg(unix)]
+fn terminate_shell_process_group(process_id: Option<u32>) {
+    let Some(process_id) = process_id else {
+        return;
+    };
+    if let Ok(pid) = i32::try_from(process_id) {
+        let Some(pid) = rustix::process::Pid::from_raw(pid) else {
+            return;
+        };
+        let _ = rustix::process::kill_process_group(pid, rustix::process::Signal::KILL);
+    }
+}
+
+#[cfg(not(unix))]
+fn terminate_shell_process_group(_process_id: Option<u32>) {}
+
+struct LimitedOutput {
+    text: String,
+    truncated: bool,
+    read_error: Option<String>,
+}
+
+async fn await_limited_output_task(
+    mut task: JoinHandle<LimitedOutput>,
+    stream_name: &'static str,
+    timeout: Duration,
+    process_id: Option<u32>,
+) -> LimitedOutput {
+    match time::timeout(timeout, &mut task).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(error)) => LimitedOutput {
+            text: String::new(),
+            truncated: true,
+            read_error: Some(format!("{stream_name} task failed: {error}")),
+        },
+        Err(_) => {
+            terminate_shell_process_group(process_id);
+            task.abort();
+            LimitedOutput {
+                text: String::new(),
+                truncated: true,
+                read_error: Some(format!("{stream_name} drain timeout")),
+            }
+        }
+    }
+}
+
+async fn read_limited_output<R>(reader: Option<R>, limit: usize) -> LimitedOutput
+where
+    R: AsyncRead + Unpin,
+{
+    let Some(mut reader) = reader else {
+        return LimitedOutput {
+            text: String::new(),
+            truncated: false,
+            read_error: None,
+        };
+    };
+    let mut bytes = Vec::with_capacity(limit.min(8 * 1024));
+    let mut truncated = false;
+    let mut buffer = [0_u8; 8 * 1024];
+
+    loop {
+        match reader.read(&mut buffer).await {
+            Ok(0) => break,
+            Ok(read) => {
+                let available = limit.saturating_sub(bytes.len());
+                if available > 0 {
+                    let keep = read.min(available);
+                    bytes.extend_from_slice(&buffer[..keep]);
+                    if keep < read {
+                        truncated = true;
+                    }
+                } else {
+                    truncated = true;
+                }
+            }
+            Err(error) => {
+                return LimitedOutput {
+                    text: String::from_utf8_lossy(&bytes).into_owned(),
+                    truncated,
+                    read_error: Some(error.to_string()),
+                };
+            }
+        }
+    }
+
+    LimitedOutput {
+        text: String::from_utf8_lossy(&bytes).into_owned(),
+        truncated,
+        read_error: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::{Duration, run_bounded_user_shell_command_with_limits};
+
+    #[tokio::test]
+    async fn scheduler_user_shell_times_out() {
+        let temp = TempDir::new().expect("temp dir");
+        let (success, output) = run_bounded_user_shell_command_with_limits(
+            "while true; do sleep 1; done",
+            temp.path(),
+            Duration::from_millis(50),
+            1024,
+        )
         .await;
 
-    match output {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let combined = format!(
-                "{ROUTE_MARKER_USER_SHELL}\nstatus={}\nstdout:\n{}\nstderr:\n{}",
-                output.status,
-                stdout.trim(),
-                stderr.trim()
-            );
-            (output.status.success(), combined)
+        assert!(!success);
+        assert!(output.contains("timeout=true"), "{output}");
+    }
+
+    #[tokio::test]
+    async fn scheduler_user_shell_output_is_bounded() {
+        let temp = TempDir::new().expect("temp dir");
+        let (success, output) = run_bounded_user_shell_command_with_limits(
+            "printf 'abcdefghijklmnopqrstuvwxyz'",
+            temp.path(),
+            Duration::from_secs(5),
+            8,
+        )
+        .await;
+
+        assert!(success, "{output}");
+        assert!(output.contains("stdout:\nabcdefgh"), "{output}");
+        assert!(output.contains("output_truncated=true"), "{output}");
+        assert!(!output.contains("ijklmnopqrstuvwxyz"), "{output}");
+    }
+
+    #[tokio::test]
+    async fn scheduler_user_shell_background_descendant_is_bounded() {
+        let temp = TempDir::new().expect("temp dir");
+        let started = std::time::Instant::now();
+        let (success, output) = run_bounded_user_shell_command_with_limits(
+            "sleep 5 & printf done",
+            temp.path(),
+            Duration::from_millis(100),
+            1024,
+        )
+        .await;
+
+        assert!(success, "{output}");
+        assert!(started.elapsed() < Duration::from_secs(3), "{output}");
+        assert!(
+            output.contains("done") || output.contains("drain timeout"),
+            "{output}"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn scheduler_user_shell_reaps_redirected_background_descendant() {
+        let temp = TempDir::new().expect("temp dir");
+        let (success, output) = run_bounded_user_shell_command_with_limits(
+            "sleep 5 >/dev/null 2>&1 & echo $! > child.pid; printf done",
+            temp.path(),
+            Duration::from_secs(5),
+            1024,
+        )
+        .await;
+
+        assert!(success, "{output}");
+        let pid = std::fs::read_to_string(temp.path().join("child.pid"))
+            .expect("child pid should be written")
+            .trim()
+            .to_string();
+        let proc_path = std::path::Path::new("/proc").join(&pid);
+        for _ in 0..20 {
+            if !proc_path.exists() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
         }
-        Err(e) => (
-            false,
-            format!("{ROUTE_MARKER_USER_SHELL}\nspawn error: {e}"),
-        ),
+        panic!("background descendant {pid} survived cron shell cleanup: {output}");
     }
 }

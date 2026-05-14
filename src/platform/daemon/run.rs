@@ -12,19 +12,21 @@ use tokio::time::Duration;
 
 use super::reload;
 use super::state::spawn_state_writer;
-use super::supervisor::spawn_supervised_components;
+use super::supervisor::{SupervisedHandle, spawn_supervised_components};
 use crate::config::Config;
 use crate::core::persona::state_persistence::BackendHeaderPersist;
 use crate::plugins::skills::skills_watch_fingerprint_with_config;
 use crate::runtime::services::bootstrap_runtime_memory;
 
 const CONFIG_RELOAD_POLL_SECONDS: u64 = 3;
+const DEFAULT_COMPONENT_SHUTDOWN_GRACE_SECONDS: u64 = 2;
+const SCHEDULER_SHUTDOWN_GRACE_SECONDS: u64 = 40;
 
 struct DaemonReloadState {
     active_config: Arc<Config>,
     last_config_modified_at: Option<std::time::SystemTime>,
     state_handles: Vec<JoinHandle<()>>,
-    component_handles: Vec<JoinHandle<()>>,
+    component_handles: Vec<SupervisedHandle>,
     initial_backoff: u64,
     max_backoff: u64,
     last_skills_fingerprint: Option<u64>,
@@ -47,6 +49,34 @@ async fn stop_handles(handles: &mut Vec<JoinHandle<()>>) {
     for handle in handles.drain(..) {
         if let Err(error) = handle.await {
             tracing::warn!(%error, "daemon task panicked during shutdown");
+        }
+    }
+}
+
+async fn stop_supervised_handles(handles: &mut Vec<SupervisedHandle>) {
+    for handle in &*handles {
+        let _ = handle.shutdown.send(true);
+    }
+    for supervised in handles.drain(..) {
+        let mut join = supervised.handle;
+        let grace_seconds = if supervised.name == "scheduler" {
+            SCHEDULER_SHUTDOWN_GRACE_SECONDS
+        } else {
+            DEFAULT_COMPONENT_SHUTDOWN_GRACE_SECONDS
+        };
+        match tokio::time::timeout(Duration::from_secs(grace_seconds), &mut join).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                tracing::warn!(component = supervised.name, %error, "daemon task panicked during shutdown");
+            }
+            Err(_) => {
+                tracing::warn!(
+                    component = supervised.name,
+                    "daemon task did not stop gracefully; aborting"
+                );
+                join.abort();
+                let _ = join.await;
+            }
         }
     }
 }
@@ -127,7 +157,7 @@ pub async fn run(config: Arc<Config>, host: String, port: u16) -> Result<()> {
     }
 
     stop_handles(&mut state.state_handles).await;
-    stop_handles(&mut state.component_handles).await;
+    stop_supervised_handles(&mut state.component_handles).await;
 
     Ok(())
 }
@@ -198,7 +228,7 @@ async fn try_config_reload(state: &mut DaemonReloadState, host: &str, port: u16)
                 tracing::warn!(%error, "failed to apply live network proxy during reload");
                 return false;
             }
-            stop_handles(&mut state.component_handles).await;
+            stop_supervised_handles(&mut state.component_handles).await;
             stop_handles(&mut state.state_handles).await;
             state.active_config = Arc::new(candidate);
             state.state_handles = vec![spawn_state_writer(Arc::clone(&state.active_config))];
@@ -230,7 +260,7 @@ async fn try_config_reload(state: &mut DaemonReloadState, host: &str, port: u16)
 async fn try_skills_refresh(
     active_config: &Config,
     last_skills_fingerprint: &mut Option<u64>,
-    component_handles: &mut Vec<JoinHandle<()>>,
+    component_handles: &mut Vec<SupervisedHandle>,
     host: &str,
     port: u16,
     initial_backoff: u64,
@@ -243,7 +273,7 @@ async fn try_skills_refresh(
         );
         if should_apply_skills_refresh(*last_skills_fingerprint, observed_fingerprint) {
             tracing::info!("applying live skills refresh");
-            stop_handles(component_handles).await;
+            stop_supervised_handles(component_handles).await;
             *component_handles = spawn_supervised_components(
                 Arc::new(active_config.clone()),
                 host.to_string(),

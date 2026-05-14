@@ -7,11 +7,18 @@ use std::future::Future;
 use std::sync::Arc;
 
 use anyhow::Result;
+use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
 
 use crate::config::Config;
 use crate::runtime::services::load_runtime_operational_snapshot;
+
+pub(super) struct SupervisedHandle {
+    pub(super) name: &'static str,
+    pub(super) shutdown: watch::Sender<bool>,
+    pub(super) handle: JoinHandle<()>,
+}
 
 /// Spawns an async task that runs `run_component` in a loop with
 /// exponential backoff and a circuit breaker.
@@ -21,19 +28,24 @@ pub(super) fn spawn_component_supervisor<F, Fut>(
     max_backoff_secs: u64,
     max_restarts: u32,
     mut run_component: F,
-) -> JoinHandle<()>
+) -> SupervisedHandle
 where
-    F: FnMut() -> Fut + Send + 'static,
+    F: FnMut(watch::Receiver<bool>) -> Fut + Send + 'static,
     Fut: Future<Output = Result<()>> + Send + 'static,
 {
-    tokio::spawn(async move {
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let handle = tokio::spawn(async move {
         let mut backoff = initial_backoff_secs.max(1);
         let max_backoff = max_backoff_secs.max(backoff);
         let mut consecutive_failures: u32 = 0;
+        let shutdown = shutdown_rx;
 
         loop {
+            if *shutdown.borrow() {
+                break;
+            }
             tracing::info!("Daemon component '{name}' starting");
-            match run_component().await {
+            match run_component(shutdown.clone()).await {
                 Ok(()) => {
                     crate::runtime::diagnostics::health::mark_component_error(
                         name,
@@ -60,10 +72,23 @@ where
                 );
                 break;
             }
-            tokio::time::sleep(Duration::from_secs(backoff)).await;
+            let mut sleep_shutdown = shutdown.clone();
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(backoff)) => {}
+                changed = sleep_shutdown.changed() => {
+                    if changed.is_ok() {
+                        break;
+                    }
+                }
+            }
             backoff = backoff.saturating_mul(2).min(max_backoff);
         }
-    })
+    });
+    SupervisedHandle {
+        name,
+        shutdown: shutdown_tx,
+        handle,
+    }
 }
 
 /// Spawns supervised component tasks for the gateway, channels,
@@ -75,7 +100,7 @@ pub(super) fn spawn_supervised_components(
     initial_backoff: u64,
     max_backoff: u64,
     supervise_channels: bool,
-) -> Vec<JoinHandle<()>> {
+) -> Vec<SupervisedHandle> {
     let mut handles = Vec::new();
 
     let gateway_cfg = Arc::clone(&config);
@@ -84,7 +109,7 @@ pub(super) fn spawn_supervised_components(
         initial_backoff,
         max_backoff,
         10,
-        move || {
+        move |_| {
             let cfg = Arc::clone(&gateway_cfg);
             let host = host.clone();
             async move {
@@ -106,7 +131,7 @@ pub(super) fn spawn_supervised_components(
             initial_backoff,
             max_backoff,
             10,
-            move || {
+            move |_| {
                 let cfg = Arc::clone(&channels_cfg);
                 async move { crate::runtime::services::run_channels_surface(cfg).await }
             },
@@ -123,7 +148,7 @@ pub(super) fn spawn_supervised_components(
             initial_backoff,
             max_backoff,
             10,
-            move || {
+            move |_| {
                 let cfg = Arc::clone(&heartbeat_cfg);
                 async move { super::heartbeat_worker::run_heartbeat_worker(cfg).await }
             },
@@ -138,9 +163,9 @@ pub(super) fn spawn_supervised_components(
             initial_backoff,
             max_backoff,
             10,
-            move || {
+            move |shutdown| {
                 let cfg = Arc::clone(&scheduler_cfg);
-                async move { crate::platform::cron::scheduler::run(cfg).await }
+                async move { crate::platform::cron::scheduler::run_until_shutdown(cfg, shutdown).await }
             },
         ));
     } else {
@@ -162,13 +187,13 @@ mod tests {
 
     #[tokio::test]
     async fn supervisor_marks_error_and_restart_on_failure() {
-        let handle = spawn_component_supervisor("daemon-test-fail", 1, 1, 0, || async {
+        let handle = spawn_component_supervisor("daemon-test-fail", 1, 1, 0, |_| async {
             anyhow::bail!("boom")
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-        handle.abort();
-        let _ = handle.await;
+        handle.handle.abort();
+        let _ = handle.handle.await;
 
         let snapshot = crate::runtime::diagnostics::health::snapshot_json();
         let component = &snapshot["components"]["daemon-test-fail"];
@@ -184,11 +209,11 @@ mod tests {
 
     #[tokio::test]
     async fn supervisor_marks_unexpected_exit_as_error() {
-        let handle = spawn_component_supervisor("daemon-test-exit", 1, 1, 0, || async { Ok(()) });
+        let handle = spawn_component_supervisor("daemon-test-exit", 1, 1, 0, |_| async { Ok(()) });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-        handle.abort();
-        let _ = handle.await;
+        handle.handle.abort();
+        let _ = handle.handle.await;
 
         let snapshot = crate::runtime::diagnostics::health::snapshot_json();
         let component = &snapshot["components"]["daemon-test-exit"];
@@ -200,5 +225,25 @@ mod tests {
                 .unwrap_or("")
                 .contains("component exited unexpectedly")
         );
+    }
+
+    #[tokio::test]
+    async fn supervisor_graceful_shutdown_completes_side_effect() {
+        let completed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let completed_for_task = Arc::clone(&completed);
+        let handle =
+            spawn_component_supervisor("daemon-test-graceful", 1, 1, 0, move |mut shutdown| {
+                let completed = Arc::clone(&completed_for_task);
+                async move {
+                    let _ = shutdown.changed().await;
+                    completed.store(true, std::sync::atomic::Ordering::SeqCst);
+                    Ok(())
+                }
+            });
+
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        let _ = handle.shutdown.send(true);
+        handle.handle.await.expect("supervisor should exit cleanly");
+        assert!(completed.load(std::sync::atomic::Ordering::SeqCst));
     }
 }

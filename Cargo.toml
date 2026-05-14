@@ -180,7 +180,7 @@ wiremock   = "0.6"
 proptest                = "1"
 
 [target.'cfg(unix)'.dependencies]
-rustix = { version = "1", default-features = false, features = ["fs", "std"] }
+rustix = { version = "1", default-features = false, features = ["fs", "process", "std"] }
 
 [profile.fuzz]
 inherits      = "dev"
