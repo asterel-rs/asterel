@@ -1,15 +1,15 @@
 ---
 title: Public release roadmap
-description: private development history を持ち込まず、Asterel を clean public snapshot として公開するための roadmap。
+description: private development history を持ち込まず、Asterel の public repository と clean release snapshot を安全に保つための roadmap。
 ---
 
-この roadmap は、現在の publicization work を release phases に分けます。願望の一覧ではなく運用手順です。各 phase には exit gate があり、research packet 全体と同じ publication boundary を保ちます。
+この roadmap は、publicization work を release-maintenance phases に分けます。願望の一覧ではなく運用手順です。各 phase には exit gate があり、research packet 全体と同じ publication boundary を保ちます。
 
-重要な制約は単純です。public repository は、public tracked set の clean snapshot から初期化するべきです。private development history、local agent assets、internal review notes、personal workspace context は public artifact に含めません。
+重要な制約は単純です。public release は、public tracked set の clean snapshot から更新するべきです。private development history、local agent assets、internal review notes、personal workspace context は public artifact に含めません。
 
 ## Phase 0 — public tracked set を凍結する
 
-Goal: 新しい repository を作る前に、何を公開できるかを正確に知る。
+Goal: public artifact を更新する前に、何を公開できるかを正確に知る。
 
 Tasks:
 
@@ -46,17 +46,17 @@ Exit criteria:
 - 新しい読者が、何が implemented で、何が alpha で、何に empirical evaluation がまだ必要かを理解できる。
 - public page が private internal context なしで読める。
 
-## Phase 2 — clean snapshot を準備する
+## Phase 2 — clean snapshot を更新する
 
-Goal: private historical blobs を残さず public repository を作る。
+Goal: private historical blobs を残さず public release tree を更新する。
 
 Tasks:
 
-- separate clean-snapshot working directory を作る。
+- separate clean-snapshot working directory を作る、または置き換える。
 - public tracked file set だけをその directory に copy する。raw workspace copy ではなく、できれば `scripts/release/create_public_snapshot.sh` を使う。
-- そこで新しい `.git` repository を initialize する。
-- copied tree を検証した後にだけ intended remote を追加する。
-- public-safe snapshot として first commit を作る。
+- copied tree を release evidence または publication input として使う前に検証する。
+- snapshot から repository を initialize する場合は、検証後にだけ intended remote を追加する。
+- verified public-safe tree からだけ commit または tag を作る。
 
 Non-goals:
 
@@ -73,15 +73,15 @@ pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
 ```
 
-時間が許す場合は、公開前に broader Rust gates も実行します。
+時間が許す場合は、公開前に strict release gate も実行します。
 
 ## Phase 3 — GitHub repository を設定する
 
-Goal: organization repository が issues、docs、security reports を安全に受けられるようにする。
+Goal: organization repository が issues、docs、security reports を安全に受けられる状態を保つ。
 
 Repository settings:
 
-- `asterel-rs/asterel` を作る。
+- `asterel-rs/asterel` が intended public repository のままであることを確認する。
 - site config が使う docs path に GitHub Pages を有効化する。
 - private vulnerability reporting を有効化する。まだ有効化していない場合は、`SECURITY.md` の fallback address が正しいことを保つ。
 - Actions permissions と branch protection を確認する。
@@ -103,9 +103,11 @@ cargo fmt -- --check
 cargo clippy -- -D warnings
 cargo check-all
 cargo test
+docker compose config
 pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
 ./scripts/dev/generate_module_map.sh && ./scripts/dev/check_architecture.sh
+./scripts/release/human_like_release_gate.sh
 ```
 
 full gate を実行できない場合は理由を記録し、もっとも近い targeted substitutes を実行します。その場合、release を fully validated と表現しません。

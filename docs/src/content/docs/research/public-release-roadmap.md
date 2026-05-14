@@ -1,20 +1,20 @@
 ---
 title: Public release roadmap
-description: Roadmap for publishing Asterel as a clean public snapshot without carrying private development history.
+description: Roadmap for keeping Asterel's public repository and clean release snapshots safe without carrying private development history.
 ---
 
-This roadmap turns the current publicization work into release phases. It is
+This roadmap turns the publicization work into release-maintenance phases. It is
 operational rather than aspirational: each phase has an exit gate and keeps the
 same publication boundary used by the rest of the research packet.
 
-The key constraint is simple: the public repository should be initialized from a
-clean snapshot of the public tracked set. Private development history, local
-agent assets, internal review notes, and personal workspace context are not part
-of the public artifact.
+The key constraint is simple: public releases should be refreshed from a clean
+snapshot of the public tracked set. Private development history, local agent
+assets, internal review notes, and personal workspace context are not part of the
+public artifact.
 
 ## Phase 0 — Freeze the public tracked set
 
-Goal: know exactly what can be published before creating a new repository.
+Goal: know exactly what can be published before refreshing the public artifact.
 
 Tasks:
 
@@ -56,18 +56,21 @@ Exit criteria:
   empirical evaluation.
 - No public page requires private internal context to understand the project.
 
-## Phase 2 — Prepare the clean snapshot
+## Phase 2 — Refresh the clean snapshot
 
-Goal: create a public repository without preserving private historical blobs.
+Goal: refresh the public release tree without preserving private historical
+blobs.
 
 Tasks:
 
-- Create a separate clean-snapshot working directory.
+- Create or replace a separate clean-snapshot working directory.
 - Copy only the public tracked file set into that directory, preferably through
   `scripts/release/create_public_snapshot.sh` rather than a raw workspace copy.
-- Initialize a new `.git` repository there.
-- Add the intended remote only after verifying the copied tree.
-- Make the first commit as a public-safe snapshot.
+- Verify the copied tree before using it as release evidence or publication
+  input.
+- If initializing a repository from the snapshot, add the intended remote only
+  after verification.
+- Commit or tag only from the verified public-safe tree.
 
 Non-goals:
 
@@ -84,16 +87,16 @@ pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
 ```
 
-Run broader Rust gates before publication when time permits.
+Run the strict release gate before publication when time permits.
 
 ## Phase 3 — Configure the GitHub repository
 
-Goal: make the organization repository safe to receive issues, docs, and security
-reports.
+Goal: keep the organization repository safe to receive issues, docs, and
+security reports.
 
 Repository settings:
 
-- Create `asterel-rs/asterel`.
+- Confirm `asterel-rs/asterel` remains the intended public repository.
 - Enable GitHub Pages for the docs path used by the site config.
 - Enable private vulnerability reporting, or keep the fallback address in
   `SECURITY.md` accurate until it is enabled.
@@ -119,10 +122,11 @@ cargo fmt -- --check
 cargo clippy -- -D warnings
 cargo check-all
 cargo test
+docker compose config
 pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
-docker compose config
 ./scripts/dev/generate_module_map.sh && ./scripts/dev/check_architecture.sh
+./scripts/release/human_like_release_gate.sh
 ```
 
 If a full gate cannot be run, record why, run the closest targeted substitutes,

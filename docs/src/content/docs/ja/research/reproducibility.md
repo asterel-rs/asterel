@@ -14,11 +14,20 @@ research-quality release は clean checkout から再現できるべきです。
 
 ## Minimal release evidence
 
+strict release gate では、quality、supply-chain、baseline、replay checks を 1 つの source of truth に保つため、checked-in release script を使います。
+
+```bash
+./scripts/release/human_like_release_gate.sh
+```
+
+local documentation pass で full strict gate が重すぎる場合は、その制限を記録し、もっとも近い targeted subset を実行します。
+
 ```bash
 cargo fmt -- --check
 cargo clippy -- -D warnings
 cargo check-all
 cargo test
+docker compose config
 pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
 ```
@@ -35,6 +44,7 @@ paper-facing artifact では次を記録します。
 - random seeds と sampling parameters
 - logs または transcripts に使った redaction policy
 - known ignored tests と、その除外理由
+- strict release gate または documented targeted subset のどちらを実行したか
 
 ## Clean snapshot requirement
 

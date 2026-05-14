@@ -17,11 +17,22 @@ development history containing internal notes.
 
 ## Minimal release evidence
 
+For the strict release gate, use the checked-in release script so quality,
+supply-chain, baseline, and replay checks stay in one source of truth:
+
+```bash
+./scripts/release/human_like_release_gate.sh
+```
+
+When the full strict gate is too expensive for a local documentation pass, record
+that limitation and run the closest targeted subset:
+
 ```bash
 cargo fmt -- --check
 cargo clippy -- -D warnings
 cargo check-all
 cargo test
+docker compose config
 pnpm --dir docs build
 cargo metadata --no-deps --format-version 1
 ```
@@ -38,6 +49,7 @@ For a paper-facing artifact, record:
 - random seeds and sampling parameters;
 - redaction policy used for any logs or transcripts;
 - known ignored tests and why they were excluded.
+- whether the strict release gate or a documented targeted subset was run.
 
 ## Clean snapshot requirement
 
