@@ -115,6 +115,77 @@ fn release_gate_script_exists_and_contains_required_quality_gates() {
 }
 
 #[test]
+fn public_docs_do_not_reference_removed_turn_enrichment_file() {
+    for file in [
+        "README.md",
+        "docs/src/content/docs/architecture/turn-pipeline.mdx",
+        "docs/src/content/docs/ja/architecture/turn-pipeline.mdx",
+    ] {
+        let content = read_repo_file(file);
+        assert!(
+            !content.contains("src/core/agent/turn_enrichment.rs"),
+            "{file} must point to the turn_enrichment module directory, not the removed flat file"
+        );
+    }
+}
+
+#[test]
+fn public_docs_track_current_release_gate_and_aliases() {
+    let readme = read_repo_file("README.md");
+    for alias in ["cargo fuzz-smoke", "cargo ntest-supported-features"] {
+        assert!(
+            readme.contains(alias),
+            "README useful aliases should include gate-relevant alias: {alias}"
+        );
+    }
+
+    let release = read_repo_file("docs/src/content/docs/guide/release.md");
+    for required in [
+        "scripts/release/human_like_release_gate.sh",
+        "cargo check-all",
+        "cargo fuzz-smoke",
+        "cargo audit",
+        "baseline",
+        "replay",
+    ] {
+        assert!(
+            release.contains(required),
+            "release guide must document strict gate requirement: {required}"
+        );
+    }
+}
+
+#[test]
+fn public_docs_do_not_advertise_removed_security_perimeter_config() {
+    let readme = read_repo_file("README.md");
+    for removed in [
+        "[security.perimeter]",
+        "enforce_uniform_inner_freedom",
+        "supported_targets",
+    ] {
+        assert!(
+            !readme.contains(removed),
+            "README must not advertise unsupported config key: {removed}"
+        );
+    }
+}
+
+#[test]
+fn env_example_covers_documented_local_runtime_overrides() {
+    let env_example = read_repo_file(".env.example");
+    for variable in [
+        "ASTEREL_POSTGRES_URL",
+        "ASTEREL_GATEWAY_ALLOW_PUBLIC_BIND",
+        "ASTEREL_INTENT_CLASSIFIER_ENABLED",
+    ] {
+        assert!(
+            env_example.contains(variable),
+            ".env.example should include documented local runtime override: {variable}"
+        );
+    }
+}
+
+#[test]
 fn postgres_schema_runner_includes_v3_guardrail_migration() {
     let schema_runner = read_repo_file("src/core/memory/postgres/schema.rs");
     assert!(
