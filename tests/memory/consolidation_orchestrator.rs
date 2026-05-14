@@ -285,6 +285,47 @@ async fn memory_consolidation_is_idempotent() {
 }
 
 #[tokio::test]
+async fn memory_consolidation_parallel_entities_preserves_all_watermarks() {
+    let temp = TempDir::new().expect("tempdir");
+    let memory = MarkdownMemory::new(temp.path());
+    let inputs = [
+        ConsolidationInput::new("tenant-alpha:parallel-a", 1, "Question A", "Answer A"),
+        ConsolidationInput::new("tenant-alpha:parallel-b", 2, "Question B", "Answer B"),
+        ConsolidationInput::new("tenant-alpha:parallel-c", 3, "Question C", "Answer C"),
+        ConsolidationInput::new("tenant-alpha:parallel-d", 4, "Question D", "Answer D"),
+    ];
+
+    let (a, b, c, d) = tokio::join!(
+        run_consolidation(&memory, temp.path(), &inputs[0]),
+        run_consolidation(&memory, temp.path(), &inputs[1]),
+        run_consolidation(&memory, temp.path(), &inputs[2]),
+        run_consolidation(&memory, temp.path(), &inputs[3]),
+    );
+    for result in [a, b, c, d] {
+        assert_eq!(
+            result.expect("consolidation should succeed").disposition,
+            ConsolidationDisposition::Consolidated
+        );
+    }
+
+    let state_path = temp
+        .path()
+        .join("state")
+        .join("memory_consolidation_state.json");
+    let raw_state = std::fs::read_to_string(&state_path).expect("state file should exist");
+    let parsed: Value = serde_json::from_str(&raw_state).expect("state file should be json");
+
+    for input in inputs {
+        assert_eq!(
+            parsed["watermarks"][input.entity_id.as_str()].as_u64(),
+            Some(input.checkpoint_event_count as u64),
+            "watermark for {} should be preserved",
+            input.entity_id
+        );
+    }
+}
+
+#[tokio::test]
 async fn memory_consolidation_runs_async_nonblocking() {
     let temp = TempDir::new().expect("test setup should succeed");
     let workspace = temp.path().join("workspace");

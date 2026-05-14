@@ -154,6 +154,19 @@ fn state_path(workspace_dir: &Path) -> PathBuf {
     workspace_dir.join("state").join(STATE_FILE)
 }
 
+fn state_lock(workspace_dir: &Path) -> Arc<tokio::sync::Mutex<()>> {
+    static STATE_LOCKS: OnceLock<Mutex<BTreeMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>> =
+        OnceLock::new();
+    let path = state_path(workspace_dir);
+    let registry = STATE_LOCKS.get_or_init(|| Mutex::new(BTreeMap::new()));
+    registry
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .entry(path)
+        .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+        .clone()
+}
+
 fn worker_status_registry() -> &'static Mutex<BTreeMap<String, ConsolidationWorkerStatus>> {
     static STATUSES: OnceLock<Mutex<BTreeMap<String, ConsolidationWorkerStatus>>> = OnceLock::new();
     STATUSES.get_or_init(|| Mutex::new(BTreeMap::new()))
@@ -268,9 +281,24 @@ fn save_state(workspace_dir: &Path, state: &ConsolidationState) -> Result<()> {
     ensure_state_parent(workspace_dir)?;
     let payload = serde_json::to_vec_pretty(state)?;
     let path = state_path(workspace_dir);
-    let tmp = path.with_extension("tmp");
-    fs::write(&tmp, payload)?;
-    fs::rename(&tmp, &path)?;
+    let tmp = path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4().simple()));
+    let write_result = (|| -> Result<()> {
+        use std::io::Write;
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
+        file.write_all(&payload)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&tmp, &path)?;
+        Ok(())
+    })();
+    if write_result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    write_result?;
     Ok(())
 }
 
@@ -424,6 +452,8 @@ pub async fn run_consolidation(
     // Releasing this before `append_event` would allow duplicate same-checkpoint semantic writes
     // unless a separate pending-watermark protocol is introduced and tested.
     let _guard = entity_lock.lock().await;
+    let state_lock = state_lock(workspace_dir);
+    let _state_guard = state_lock.lock().await;
     ensure_state_parent(workspace_dir)?;
     let mut state = load_state(workspace_dir)?;
     let previous_watermark = state
