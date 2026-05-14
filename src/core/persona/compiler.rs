@@ -244,7 +244,8 @@ fn file_fingerprint(path: &Path) -> FileFingerprint {
 const STOCK_DESCRIPTOR: &str = "A companion that listens for the shape of what someone is trying to say, before deciding what to say back. Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.";
 
 /// Stock communication line used in `DEFAULT_PERSONA_GUIDANCE`.
-const STOCK_COMM_LINE: &str = "Listen for the shape of what's being said before deciding what to say back.";
+const STOCK_COMM_LINE: &str =
+    "Listen for the shape of what's being said before deciding what to say back.";
 
 /// The exact `CHARACTER.md` content the onboarding wizard scaffolds for
 /// a fresh workspace. Used to detect "the operator has not customised
@@ -409,15 +410,16 @@ impl OperatorOverlay {
         // example block when the operator supplies one. `## How I Read`
         // has no hardcoded equivalent — it is injected as a dedicated
         // section only when the operator supplies content.
-        let appended = |body: Option<&str>| -> String {
-            body.map(|c| format!("\n{c}\n")).unwrap_or_default()
-        };
+        let appended =
+            |body: Option<&str>| -> String { body.map(|c| format!("\n{c}\n")).unwrap_or_default() };
         Self {
             voice_block: appended(voice),
             avoids_block: appended(avoids),
             asking_back_block: appended(asking_back),
-            examples_section: examples
-                .map_or_else(|| Self::DEFAULT_EXAMPLES.to_string(), |c| format!("### Examples\n{c}\n\n")),
+            examples_section: examples.map_or_else(
+                || Self::DEFAULT_EXAMPLES.to_string(),
+                |c| format!("### Examples\n{c}\n\n"),
+            ),
             how_you_read_section: how_i_read
                 .map_or_else(String::new, |c| format!("### How You Read\n{c}\n\n")),
         }
@@ -520,11 +522,9 @@ mod tests {
         write_character(&tmp, "");
         let snapshot = compile_persona_snapshot(tmp.path());
         assert!(snapshot.guidance.contains("Iris — Fast and practical."));
-        assert!(
-            snapshot
-                .guidance
-                .contains("Listen for the shape of what's being said before deciding what to say back.")
-        );
+        assert!(snapshot.guidance.contains(
+            "Listen for the shape of what's being said before deciding what to say back."
+        ));
         assert_ne!(snapshot.source_hash, "default");
     }
 
@@ -671,7 +671,9 @@ mod tests {
         );
         let snapshot = compile_persona_snapshot(tmp.path());
         assert!(
-            snapshot.guidance.contains("User: \"thanks\" -> \"any time.\""),
+            snapshot
+                .guidance
+                .contains("User: \"thanks\" -> \"any time.\""),
             "operator's ## Voice Examples must appear in the prompt"
         );
         // Default examples should be displaced.
@@ -698,14 +700,22 @@ mod tests {
              ## Asking Back\nOne short return-question, then commit to listening.",
         );
         let snapshot = compile_persona_snapshot(tmp.path());
-        assert!(snapshot.guidance.contains("Saying \"sorry\" twice in a row."));
+        assert!(
+            snapshot
+                .guidance
+                .contains("Saying \"sorry\" twice in a row.")
+        );
         assert!(
             snapshot
                 .guidance
                 .contains("One short return-question, then commit to listening.")
         );
         // Defaults still present (operator content is appended, not replacing).
-        assert!(snapshot.guidance.contains("Claim to be human or to have consciousness."));
+        assert!(
+            snapshot
+                .guidance
+                .contains("Claim to be human or to have consciousness.")
+        );
     }
 
     #[test]
