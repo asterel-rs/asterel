@@ -74,7 +74,7 @@ where
             }
             let mut sleep_shutdown = shutdown.clone();
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_secs(backoff)) => {}
+                () = tokio::time::sleep(Duration::from_secs(backoff)) => {}
                 changed = sleep_shutdown.changed() => {
                     if changed.is_ok() {
                         break;

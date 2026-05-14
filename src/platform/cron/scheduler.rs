@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::{DateTime, Duration as ChronoDuration, Timelike, Utc};
+use std::fmt::Write as _;
 use std::process::Stdio;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
@@ -434,10 +435,10 @@ async fn run_bounded_user_shell_command_with_limits(
         combined.push_str("\ntimeout=true");
     }
     if let Some(error) = stdout.read_error.as_deref() {
-        combined.push_str(&format!("\nstdout_read_error={error}"));
+        let _ = write!(combined, "\nstdout_read_error={error}");
     }
     if let Some(error) = stderr.read_error.as_deref() {
-        combined.push_str(&format!("\nstderr_read_error={error}"));
+        let _ = write!(combined, "\nstderr_read_error={error}");
     }
 
     (success, combined)
