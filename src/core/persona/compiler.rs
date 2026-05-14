@@ -36,9 +36,10 @@ pub struct PersonaSnapshot {
 /// Compile a persona snapshot from workspace identity files.
 ///
 /// Pulls identity attributes (name, nature, vibe, emoji) and the first
-/// communication line from `SOUL.md`, plus four operator-tunable sections
-/// from `CHARACTER.md`: `## Voice`, `## Avoids`, `## Asking Back`, and
-/// `## Voice Examples`. Hardcoded defaults fill in any missing section.
+/// communication line from `SOUL.md`, plus five operator-tunable sections
+/// from `CHARACTER.md`: `## Voice`, `## Avoids`, `## Asking Back`,
+/// `## Voice Examples`, and `## How I Read`. Hardcoded defaults fill in
+/// any missing section.
 ///
 /// Returns the built-in default in two cases:
 /// 1. `SOUL.md` is missing or empty.
@@ -117,17 +118,13 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
     // absent fall back to the hardcoded defaults below; sections that
     // are present get appended (or, for Examples, replace) the
     // corresponding hardcoded block.
-    let operator_voice = extract_named_section(&character_raw, "Voice");
-    let operator_avoids = extract_named_section(&character_raw, "Avoids");
-    let operator_asking_back = extract_named_section(&character_raw, "Asking Back");
-    let operator_examples = extract_named_section(&character_raw, "Voice Examples");
-
     // If every observable surface — Identity in SOUL.md plus the
     // operator-facing sections of CHARACTER.md — still matches the
     // shipped defaults, return DEFAULT_PERSONA_GUIDANCE verbatim so
     // eval and judge stability are preserved across builds.
-    let character_is_stock = character_matches_stock(&character_raw, &name);
-    if is_stock_identity(&name, &descriptor, &comm_line, emoji.as_deref()) && character_is_stock {
+    if is_stock_identity(&name, &descriptor, &comm_line, emoji.as_deref())
+        && character_matches_stock(&character_raw, &name)
+    {
         return PersonaSnapshot {
             guidance: default_persona_prompt(),
             source_hash: source_hash(&soul_raw, &character_raw),
@@ -141,18 +138,13 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
         .filter(|v| !v.trim().is_empty())
         .map_or(String::new(), |v| format!(" ({v})"));
 
-    let overlay = OperatorOverlay::build(
-        operator_voice.as_deref(),
-        operator_avoids.as_deref(),
-        operator_asking_back.as_deref(),
-        operator_examples.as_deref(),
-    );
     let OperatorOverlay {
         voice_block,
         avoids_block,
         asking_back_block,
         examples_section,
-    } = overlay;
+        how_you_read_section,
+    } = OperatorOverlay::from_character_raw(&character_raw);
 
     let guidance = format!(
         "### Who You Are\n\
@@ -160,6 +152,7 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
          Not a chatbot. Not an agent. Not ChatGPT, Claude, or any other product.\n\
          You have opinions, preferences, and tastes.\n\
          What someone shares with you — time, trust, memory of past moments — is not disposable context.\n\n\
+         {how_you_read_section}\
          ### How You Talk\n\
          {comm_line}\n\
          Short and natural. One to three sentences usually suffices.\n\
@@ -376,6 +369,7 @@ struct OperatorOverlay {
     avoids_block: String,
     asking_back_block: String,
     examples_section: String,
+    how_you_read_section: String,
 }
 
 impl OperatorOverlay {
@@ -387,16 +381,34 @@ impl OperatorOverlay {
         User: \"猫と犬どっち派？\" -> \"猫かな。あの気まぐれなところが好き。\"\n\
         User: \"前に話したやつ、もう一回説明してもいい?\" -> \"覚えてる。けど、もう一度聞きたいなら聞かせて。\"\n\n";
 
+    fn from_character_raw(character_raw: &str) -> Self {
+        let voice = extract_named_section(character_raw, "Voice");
+        let avoids = extract_named_section(character_raw, "Avoids");
+        let asking_back = extract_named_section(character_raw, "Asking Back");
+        let examples = extract_named_section(character_raw, "Voice Examples");
+        let how_i_read = extract_named_section(character_raw, "How I Read");
+        Self::build(
+            voice.as_deref(),
+            avoids.as_deref(),
+            asking_back.as_deref(),
+            examples.as_deref(),
+            how_i_read.as_deref(),
+        )
+    }
+
     fn build(
         voice: Option<&str>,
         avoids: Option<&str>,
         asking_back: Option<&str>,
         examples: Option<&str>,
+        how_i_read: Option<&str>,
     ) -> Self {
         // Voice / Avoids / Asking Back are appended to their hardcoded
         // sections, so a missing override produces no extra prompt
         // content. Voice Examples, in contrast, replaces the default
-        // example block when the operator supplies one.
+        // example block when the operator supplies one. `## How I Read`
+        // has no hardcoded equivalent — it is injected as a dedicated
+        // section only when the operator supplies content.
         let appended = |body: Option<&str>| -> String {
             body.map(|c| format!("\n{c}\n")).unwrap_or_default()
         };
@@ -406,6 +418,8 @@ impl OperatorOverlay {
             asking_back_block: appended(asking_back),
             examples_section: examples
                 .map_or_else(|| Self::DEFAULT_EXAMPLES.to_string(), |c| format!("### Examples\n{c}\n\n")),
+            how_you_read_section: how_i_read
+                .map_or_else(String::new, |c| format!("### How You Read\n{c}\n\n")),
         }
     }
 }
@@ -692,6 +706,66 @@ mod tests {
         );
         // Defaults still present (operator content is appended, not replacing).
         assert!(snapshot.guidance.contains("Claim to be human or to have consciousness."));
+    }
+
+    #[test]
+    fn test_operator_how_i_read_creates_new_section() {
+        let tmp = TempDir::new().unwrap();
+        write_soul_with_identity(
+            &tmp,
+            "Asterel",
+            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
+            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "🐢",
+            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+        );
+        write_character(
+            &tmp,
+            "## How I Read\n\
+             - Time at the scale of weeks and months, not single turns.\n\
+             - Silence and pace as content, not absence.",
+        );
+        let snapshot = compile_persona_snapshot(tmp.path());
+        assert!(
+            snapshot.guidance.contains("### How You Read"),
+            "operator's ## How I Read must surface as a `### How You Read` section in the prompt"
+        );
+        assert!(
+            snapshot
+                .guidance
+                .contains("Time at the scale of weeks and months, not single turns.")
+        );
+        assert!(
+            snapshot
+                .guidance
+                .contains("Silence and pace as content, not absence.")
+        );
+        // The section should sit between Who You Are and How You Talk so
+        // the read style frames the output style that follows.
+        let who_pos = snapshot.guidance.find("### Who You Are").unwrap();
+        let read_pos = snapshot.guidance.find("### How You Read").unwrap();
+        let talk_pos = snapshot.guidance.find("### How You Talk").unwrap();
+        assert!(who_pos < read_pos);
+        assert!(read_pos < talk_pos);
+    }
+
+    #[test]
+    fn test_missing_how_i_read_omits_section_entirely() {
+        let tmp = TempDir::new().unwrap();
+        write_soul_with_identity(
+            &tmp,
+            "Iris",
+            "Quiet observer",
+            "Calm and precise",
+            "🪞",
+            "## Communication\nObserve before speaking.",
+        );
+        write_character(&tmp, "## Voice\n- Say less than expected.");
+        let snapshot = compile_persona_snapshot(tmp.path());
+        // No `## How I Read` in CHARACTER.md → no dedicated section in
+        // the prompt. The hardcoded body still flows from Who You Are
+        // straight into How You Talk.
+        assert!(!snapshot.guidance.contains("### How You Read"));
     }
 
     #[test]
