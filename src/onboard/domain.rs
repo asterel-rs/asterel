@@ -34,12 +34,20 @@ const OPENAI_CODEX_MODELS: &[ProviderModelChoice] = &[
         label: "GPT-5.3 Codex (most capable Codex)",
     },
     ProviderModelChoice {
+        model: "gpt-5.5-codex",
+        label: "GPT-5.5 Codex (latest Codex)",
+    },
+    ProviderModelChoice {
         model: "gpt-5.2-codex",
         label: "GPT-5.2 Codex (long-horizon coding)",
     },
     ProviderModelChoice {
         model: "gpt-5.4",
         label: "GPT-5.4 (general flagship)",
+    },
+    ProviderModelChoice {
+        model: "gpt-5.5",
+        label: "GPT-5.5 (latest)",
     },
     ProviderModelChoice {
         model: "gpt-5-mini",

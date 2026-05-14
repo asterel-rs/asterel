@@ -118,16 +118,20 @@ scan_env = true
 
 [providers.integration]
 name = "OpenAI"
-description = "GPT-5.4, GPT-5 Mini, Codex"
+description = "GPT-5.5, GPT-5.4, GPT-5 Mini, Codex"
 
 [providers.onboarding]
 tier = "recommended"
-label = "OpenAI — GPT-5.4, GPT-5 Mini, Codex"
+label = "OpenAI — GPT-5.5, GPT-5.4, GPT-5 Mini, Codex"
 auth_method = "api_key_or_oauth"
 
 [[providers.onboarding.models]]
 model = "gpt-5.4"
 label = "GPT-5.4 (flagship)"
+
+[[providers.onboarding.models]]
+model = "gpt-5.5"
+label = "GPT-5.5 (latest)"
 
 [[providers.onboarding.models]]
 model = "gpt-5-mini"
@@ -136,6 +140,10 @@ label = "GPT-5 Mini (fast, cheap)"
 [[providers.onboarding.models]]
 model = "gpt-5.3-codex"
 label = "GPT-5.3 Codex (most capable Codex)"
+
+[[providers.onboarding.models]]
+model = "gpt-5.5-codex"
+label = "GPT-5.5 Codex (latest Codex)"
 
 [[providers.onboarding.models]]
 model = "gpt-5.2-codex"
