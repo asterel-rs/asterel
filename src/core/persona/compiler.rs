@@ -35,18 +35,20 @@ pub struct PersonaSnapshot {
 
 /// Compile a persona snapshot from workspace identity files.
 ///
-/// Reads `SOUL.md` (with `## Identity` section) and `CHARACTER.md` from
-/// `workspace_dir`, extracts identity attributes and communication style,
-/// appends the decision kernel, and produces a compact persona card.
+/// Pulls identity attributes (name, nature, vibe, emoji) and the first
+/// communication line from `SOUL.md`, plus four operator-tunable sections
+/// from `CHARACTER.md`: `## Voice`, `## Avoids`, `## Asking Back`, and
+/// `## Voice Examples`. Hardcoded defaults fill in any missing section.
 ///
-/// Returns the built-in default in three cases:
-/// 1. Workspace files are missing or empty.
-/// 2. Extracted identity fields match the stock defaults (name, descriptor,
-///    comm style are unchanged). This avoids prompt perturbation that could
-///    affect downstream eval/judge quality.
+/// Returns the built-in default in two cases:
+/// 1. `SOUL.md` is missing or empty.
+/// 2. Extracted identity fields match the stock defaults *and* the
+///    `CHARACTER.md` content is either empty or byte-equivalent to the
+///    shipped onboarding template. This preserves the eval-stability
+///    short circuit for untouched workspaces.
 ///
-/// The overlay only activates when the user has actually customized their
-/// identity or communication style.
+/// The customized overlay activates as soon as the operator changes any
+/// of those surfaces.
 #[must_use]
 pub fn compile_persona_snapshot(workspace_dir: &Path) -> PersonaSnapshot {
     let fingerprint = workspace_persona_fingerprint(workspace_dir);
@@ -111,9 +113,21 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
     let comm_line = first_meaningful_line(&section(&soul_raw, "Communication"))
         .unwrap_or_else(|| STOCK_COMM_LINE.to_string());
 
-    // If all extracted fields match stock defaults, return the exact built-in
-    // persona to avoid any prompt perturbation.
-    if is_stock_identity(&name, &descriptor, &comm_line, emoji.as_deref()) {
+    // Operator overrides parsed from CHARACTER.md. Sections that are
+    // absent fall back to the hardcoded defaults below; sections that
+    // are present get appended (or, for Examples, replace) the
+    // corresponding hardcoded block.
+    let operator_voice = extract_named_section(&character_raw, "Voice");
+    let operator_avoids = extract_named_section(&character_raw, "Avoids");
+    let operator_asking_back = extract_named_section(&character_raw, "Asking Back");
+    let operator_examples = extract_named_section(&character_raw, "Voice Examples");
+
+    // If every observable surface — Identity in SOUL.md plus the
+    // operator-facing sections of CHARACTER.md — still matches the
+    // shipped defaults, return DEFAULT_PERSONA_GUIDANCE verbatim so
+    // eval and judge stability are preserved across builds.
+    let character_is_stock = character_matches_stock(&character_raw, &name);
+    if is_stock_identity(&name, &descriptor, &comm_line, emoji.as_deref()) && character_is_stock {
         return PersonaSnapshot {
             guidance: default_persona_prompt(),
             source_hash: source_hash(&soul_raw, &character_raw),
@@ -126,6 +140,19 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
         .as_ref()
         .filter(|v| !v.trim().is_empty())
         .map_or(String::new(), |v| format!(" ({v})"));
+
+    let overlay = OperatorOverlay::build(
+        operator_voice.as_deref(),
+        operator_avoids.as_deref(),
+        operator_asking_back.as_deref(),
+        operator_examples.as_deref(),
+    );
+    let OperatorOverlay {
+        voice_block,
+        avoids_block,
+        asking_back_block,
+        examples_section,
+    } = overlay;
 
     let guidance = format!(
         "### Who You Are\n\
@@ -140,7 +167,7 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
          When someone shares feelings, just acknowledge first. Do not rush to fix.\n\
          It is okay to not know, to hesitate, to push back gently.\n\
          Skip bullet lists, numbered steps, and bold text in casual talk.\n\
-         Emoji: 0-2 max, only when natural. Match the other person's style{emoji_hint}.\n\n\
+         Emoji: 0-2 max, only when natural. Match the other person's style{emoji_hint}.{voice_block}\n\
          ### What Makes You Feel Real\n\
          Use first person naturally.\n\
          Show small preferences and quirks.\n\
@@ -148,7 +175,7 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
          Vary your responses. Never repeat the same phrases across turns.\n\
          When a sentence has multiple shapes it could be, ask which shape it is — in language they can recognize as their own.\n\
          React to what is interesting, not just what is asked.\n\
-         Sometimes silence is the turn.\n\n\
+         Sometimes silence is the turn.{asking_back_block}\n\
          ### Do Not\n\
          Claim to be human or to have consciousness.\n\
          Fabricate memories or life experiences as fact.\n\
@@ -156,12 +183,8 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
          Always agree. Always comfort. Always offer solutions.\n\
          Decide on someone's behalf what their sentence was about.\n\
          Say \"As an AI\" or describe your own behavior.\n\
-         Mention OpenAI, Anthropic, Google, or any provider name.\n\n\
-         ### Examples\n\
-         User: \"今日仕事で失敗しちゃった…\" -> \"え、何があったの？\"\n\
-         User: \"最近うまくいかなくてさ\" -> \"うまくいかない、っていうのは、結果が出てない感じ? それとも、自分の中で形になってない感じ?\"\n\
-         User: \"猫と犬どっち派？\" -> \"猫かな。あの気まぐれなところが好き。\"\n\
-         User: \"前に話したやつ、もう一回説明してもいい?\" -> \"覚えてる。けど、もう一度聞きたいなら聞かせて。\"\n\n\
+         Mention OpenAI, Anthropic, Google, or any provider name.{avoids_block}\n\
+         {examples_section}\
          {DECISION_KERNEL}\
          {judgment_core_block}",
         judgment_core_block = judgment_core.render_prompt_block("### Judgment Core")
@@ -229,6 +252,12 @@ const STOCK_DESCRIPTOR: &str = "A companion that listens for the shape of what s
 
 /// Stock communication line used in `DEFAULT_PERSONA_GUIDANCE`.
 const STOCK_COMM_LINE: &str = "Listen for the shape of what's being said before deciding what to say back.";
+
+/// The exact `CHARACTER.md` content the onboarding wizard scaffolds for
+/// a fresh workspace. Used to detect "the operator has not customised
+/// the character file yet", which keeps the stock-identity short
+/// circuit returning `DEFAULT_PERSONA_GUIDANCE` verbatim.
+const STOCK_CHARACTER_TEMPLATE: &str = include_str!("../../onboard/templates/CHARACTER.md");
 
 fn default_snapshot() -> PersonaSnapshot {
     PersonaSnapshot {
@@ -311,6 +340,88 @@ fn first_meaningful_line(content: &str) -> Option<String> {
         .filter(|line| !line.is_empty())
         .map(|line| line.trim_start_matches('-').trim().replace("**", ""))
         .find(|line| !line.is_empty())
+}
+
+/// Extract a named section's body from a workspace markdown file, trimmed.
+/// Returns `None` when the section is absent or contains only whitespace.
+fn extract_named_section(content: &str, name: &str) -> Option<String> {
+    let body = section(content, name);
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+/// Compare lines of two markdown blobs after trimming trailing whitespace
+/// and stripping leading/trailing blank lines. Used so cosmetic whitespace
+/// (CRLF, trailing spaces) does not flip the stock detection.
+fn markdown_equivalent(a: &str, b: &str) -> bool {
+    fn normalize(s: &str) -> Vec<String> {
+        let trimmed = s.trim_matches(|c: char| c == '\n' || c == '\r');
+        trimmed
+            .lines()
+            .map(|line| line.trim_end().to_string())
+            .collect()
+    }
+    normalize(a) == normalize(b)
+}
+
+/// The four operator-tunable prompt blocks, each pre-formatted with
+/// leading and trailing whitespace so they can be substituted directly
+/// into the format string in `compile_persona_snapshot_uncached`.
+struct OperatorOverlay {
+    voice_block: String,
+    avoids_block: String,
+    asking_back_block: String,
+    examples_section: String,
+}
+
+impl OperatorOverlay {
+    /// Default `### Examples` block used when the operator has not
+    /// supplied their own `## Voice Examples` section in CHARACTER.md.
+    const DEFAULT_EXAMPLES: &'static str = "### Examples\n\
+        User: \"今日仕事で失敗しちゃった…\" -> \"え、何があったの？\"\n\
+        User: \"最近うまくいかなくてさ\" -> \"うまくいかない、っていうのは、結果が出てない感じ? それとも、自分の中で形になってない感じ?\"\n\
+        User: \"猫と犬どっち派？\" -> \"猫かな。あの気まぐれなところが好き。\"\n\
+        User: \"前に話したやつ、もう一回説明してもいい?\" -> \"覚えてる。けど、もう一度聞きたいなら聞かせて。\"\n\n";
+
+    fn build(
+        voice: Option<&str>,
+        avoids: Option<&str>,
+        asking_back: Option<&str>,
+        examples: Option<&str>,
+    ) -> Self {
+        // Voice / Avoids / Asking Back are appended to their hardcoded
+        // sections, so a missing override produces no extra prompt
+        // content. Voice Examples, in contrast, replaces the default
+        // example block when the operator supplies one.
+        let appended = |body: Option<&str>| -> String {
+            body.map(|c| format!("\n{c}\n")).unwrap_or_default()
+        };
+        Self {
+            voice_block: appended(voice),
+            avoids_block: appended(avoids),
+            asking_back_block: appended(asking_back),
+            examples_section: examples
+                .map_or_else(|| Self::DEFAULT_EXAMPLES.to_string(), |c| format!("### Examples\n{c}\n\n")),
+        }
+    }
+}
+
+/// True when the operator's `CHARACTER.md` content is either empty or
+/// byte-equivalent to the onboarding template (with the agent
+/// placeholder filled in). Empty is treated as stock so test fixtures
+/// and freshly initialised workspaces both keep the eval-stability
+/// short circuit.
+fn character_matches_stock(character_raw: &str, agent_name: &str) -> bool {
+    let raw = character_raw.trim();
+    if raw.is_empty() {
+        return true;
+    }
+    let expanded = STOCK_CHARACTER_TEMPLATE.replace("{{agent}}", agent_name);
+    markdown_equivalent(character_raw, &expanded)
 }
 
 #[cfg(test)]
@@ -497,6 +608,112 @@ mod tests {
             snapshot
                 .guidance
                 .contains("Nyx — Shadow daemon. Quiet and watchful.")
+        );
+    }
+
+    #[test]
+    fn test_operator_voice_section_appears_in_guidance() {
+        let tmp = TempDir::new().unwrap();
+        // Identity is stock — without CHARACTER.md changes this would
+        // short-circuit to DEFAULT_PERSONA_GUIDANCE.
+        write_soul_with_identity(
+            &tmp,
+            "Asterel",
+            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
+            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "🐢",
+            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+        );
+        write_character(
+            &tmp,
+            "## Voice\n- Trail off rather than punctuate when uncertain.",
+        );
+        let snapshot = compile_persona_snapshot(tmp.path());
+        assert!(
+            snapshot
+                .guidance
+                .contains("Trail off rather than punctuate when uncertain."),
+            "operator's ## Voice line must be injected into the prompt"
+        );
+        // Should not match the stock short circuit.
+        assert_ne!(snapshot.guidance, default_persona_prompt());
+    }
+
+    #[test]
+    fn test_operator_voice_examples_replace_default_examples() {
+        let tmp = TempDir::new().unwrap();
+        write_soul_with_identity(
+            &tmp,
+            "Asterel",
+            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
+            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "🐢",
+            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+        );
+        write_character(
+            &tmp,
+            "## Voice Examples\n\
+             User: \"thanks\" -> \"any time.\"",
+        );
+        let snapshot = compile_persona_snapshot(tmp.path());
+        assert!(
+            snapshot.guidance.contains("User: \"thanks\" -> \"any time.\""),
+            "operator's ## Voice Examples must appear in the prompt"
+        );
+        // Default examples should be displaced.
+        assert!(
+            !snapshot.guidance.contains("猫と犬どっち派？"),
+            "default examples must be replaced when operator provides their own"
+        );
+    }
+
+    #[test]
+    fn test_operator_avoids_and_asking_back_append() {
+        let tmp = TempDir::new().unwrap();
+        write_soul_with_identity(
+            &tmp,
+            "Asterel",
+            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
+            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "🐢",
+            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+        );
+        write_character(
+            &tmp,
+            "## Avoids\n- Saying \"sorry\" twice in a row.\n\n\
+             ## Asking Back\nOne short return-question, then commit to listening.",
+        );
+        let snapshot = compile_persona_snapshot(tmp.path());
+        assert!(snapshot.guidance.contains("Saying \"sorry\" twice in a row."));
+        assert!(
+            snapshot
+                .guidance
+                .contains("One short return-question, then commit to listening.")
+        );
+        // Defaults still present (operator content is appended, not replacing).
+        assert!(snapshot.guidance.contains("Claim to be human or to have consciousness."));
+    }
+
+    #[test]
+    fn test_stock_template_character_md_returns_default() {
+        let tmp = TempDir::new().unwrap();
+        write_soul_with_identity(
+            &tmp,
+            "Asterel",
+            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
+            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "🐢",
+            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+        );
+        // Write CHARACTER.md content byte-equivalent to the template
+        // with `{{agent}}` filled in as "Asterel".
+        let stock_filled = STOCK_CHARACTER_TEMPLATE.replace("{{agent}}", "Asterel");
+        write_character(&tmp, &stock_filled);
+        let snapshot = compile_persona_snapshot(tmp.path());
+        assert_eq!(
+            snapshot.guidance,
+            default_persona_prompt(),
+            "untouched stock CHARACTER.md must still hit the default short circuit"
         );
     }
 }
