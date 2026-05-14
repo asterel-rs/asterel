@@ -11,8 +11,9 @@
 //!   GraphRAG PPR boosting; `Markdown` uses its local projection keyword path.
 //! - **Ingestion pipeline**: signal envelope normalization, dedup, and
 //!   write-policy enforcement before appending events.
-//! - **Consolidation**: session-to-semantic distillation (rule-based and
-//!   LLM-driven) triggered after each turn.
+//! - **Consolidation**: session-to-semantic distillation through the exported
+//!   rule-based post-turn path. Optional LLM-assisted consolidation code exists
+//!   separately but is not wired into the live post-turn facade.
 //! - **Hygiene**: scheduled archival, TTL pruning, and sleep-phase
 //!   consolidation for the `Postgres` backend.
 //! - **Governance**: optional in-process access logging, archive policy types,

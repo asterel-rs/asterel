@@ -39,7 +39,7 @@ Asterel でコンパニオン・ターンを実行する表面は、同じター
   ]}
 />
 
-トランスポート向けの経路は `src/runtime/services/companion_turn.rs` にあります。ターン前後の補強は `src/core/agent/turn_enrichment.rs` が所有します。既定のツールループはすべてのツール呼び出しを次のミドルウェア列に通します。
+トランスポート向けの経路は `src/runtime/services/companion_turn.rs` にあります。ターン前後の補強は `src/core/agent/turn_enrichment/` が所有します。既定のツールループはすべてのツール呼び出しを次のミドルウェア列に通します。
 
 ```text
 SecurityMiddleware → HookMiddleware → EntityRateLimitMiddleware → AuditMiddleware

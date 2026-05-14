@@ -39,7 +39,7 @@ Every Asterel surface that executes a companion turn converges on the same turn 
   ]}
 />
 
-The transport-facing path lives in `src/runtime/services/companion_turn.rs`. Pre/post-turn enrichment is owned by `src/core/agent/turn_enrichment.rs`. The default tool loop runs every tool call through this middleware chain:
+The transport-facing path lives in `src/runtime/services/companion_turn.rs`. Pre/post-turn enrichment is owned by `src/core/agent/turn_enrichment/`. The default tool loop runs every tool call through this middleware chain:
 
 ```
 SecurityMiddleware → HookMiddleware → EntityRateLimitMiddleware → AuditMiddleware
