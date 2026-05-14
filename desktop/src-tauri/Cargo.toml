@@ -1,6 +1,6 @@
 [package]
 name = "asterel-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Asterel Desktop — operator console for the Asterel companion runtime"
 authors = ["Asterel Contributors"]
 license = "MIT OR Apache-2.0"

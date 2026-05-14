@@ -32,7 +32,7 @@ pub use subcommands::{
 #[derive(Parser, Debug)]
 #[command(name = "asterel")]
 #[command(author = "Asterel Contributors")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "A secure, extensible AI assistant.", long_about = None)]
 pub struct Cli {
     /// The subcommand to execute.

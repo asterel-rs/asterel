@@ -50,7 +50,7 @@ body:
     attributes:
       label: Asterel version
       description: Output of `asterel --version`
-      placeholder: "asterel 0.1.0"
+      placeholder: "asterel 0.1.1"
     validations:
       required: true
 
