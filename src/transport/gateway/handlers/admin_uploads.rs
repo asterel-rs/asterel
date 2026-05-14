@@ -8,12 +8,13 @@ use uuid::Uuid;
 use super::super::AppState;
 use super::super::problem_details::problem_response;
 use super::admin_paths::admin_uploads_dir;
-use super::require_management_principal;
+use super::{request_management_policy_context, require_management_principal};
 use crate::security::{RootBoundPathKind, resolve_relative_path_within_root};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct StoredAdminUpload {
     upload_id: String,
+    tenant_id: String,
     field_name: Option<String>,
     original_name: Option<String>,
     stored_name: String,
@@ -32,9 +33,10 @@ fn gateway_uploads_dir(workspace_dir: &Path) -> std::path::PathBuf {
 
 pub(in crate::transport::gateway) fn resolve_stored_upload_path(
     workspace_dir: &Path,
+    tenant_id: &str,
     upload_id: &str,
-) -> Option<(std::path::PathBuf, std::path::PathBuf)> {
-    let uploads_dir = gateway_uploads_dir(workspace_dir);
+) -> Option<(std::path::PathBuf, std::path::PathBuf, Option<String>)> {
+    let uploads_dir = gateway_uploads_dir(workspace_dir).join(tenant_id);
     let metadata_path = uploads_dir.join(format!("{upload_id}.json"));
     let metadata = std::fs::read(&metadata_path).ok()?;
     let stored: StoredAdminUpload = serde_json::from_slice(&metadata).ok()?;
@@ -43,6 +45,15 @@ pub(in crate::transport::gateway) fn resolve_stored_upload_path(
             expected_upload_id = upload_id,
             actual_upload_id = %stored.upload_id,
             "stored upload metadata id mismatch"
+        );
+        return None;
+    }
+    if stored.tenant_id != tenant_id {
+        tracing::warn!(
+            upload_id,
+            expected_tenant_id = tenant_id,
+            actual_tenant_id = %stored.tenant_id,
+            "stored upload metadata tenant mismatch"
         );
         return None;
     }
@@ -62,12 +73,13 @@ pub(in crate::transport::gateway) fn resolve_stored_upload_path(
             return None;
         }
     };
-    Some((uploads_dir.clone(), stored_path))
+    Some((uploads_dir.clone(), stored_path, stored.content_type))
 }
 
 fn persist_upload_bytes(
     workspace_dir: &Path,
     uploads_dir: &Path,
+    tenant_id: &str,
     field_name: Option<&str>,
     original_name: Option<&str>,
     content_type: Option<&str>,
@@ -89,6 +101,7 @@ fn persist_upload_bytes(
 
     let stored = StoredAdminUpload {
         upload_id: upload_id.clone(),
+        tenant_id: tenant_id.to_string(),
         field_name: field_name.map(ToString::to_string),
         original_name: original_name.map(sanitize_upload_filename),
         stored_name: stored_name.clone(),
@@ -162,8 +175,17 @@ pub(crate) async fn handle_upload(
     mut multipart: Multipart,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     require_management_principal(&state, &headers)?;
+    let policy_context = request_management_policy_context(&state, &headers)?;
+    let tenant_id = policy_context.tenant_id.as_deref().ok_or_else(|| {
+        problem_response(
+            StatusCode::FORBIDDEN,
+            "tenant_scope_required",
+            "Forbidden",
+            "Admin uploads require a tenant-scoped paired bearer token.".to_string(),
+        )
+    })?;
 
-    let uploads_dir = admin_uploads_dir(&state.runtime.config);
+    let uploads_dir = admin_uploads_dir(&state.runtime.config).join(tenant_id);
     tokio::fs::create_dir_all(&uploads_dir)
         .await
         .map_err(|error| {
@@ -196,6 +218,7 @@ pub(crate) async fn handle_upload(
         let stored = persist_upload_bytes(
             &state.runtime.config.workspace_dir,
             &uploads_dir,
+            tenant_id,
             field_name.as_deref(),
             original_name.as_deref(),
             content_type.as_deref(),
@@ -250,11 +273,13 @@ mod tests {
     fn persist_upload_bytes_writes_file_and_metadata() {
         let temp = TempDir::new().expect("temp dir");
         let uploads_dir = temp.path().join(".asterel/gateway/uploads");
-        std::fs::create_dir_all(&uploads_dir).expect("create uploads dir");
+        let tenant_uploads_dir = uploads_dir.join("tenant-a");
+        std::fs::create_dir_all(&tenant_uploads_dir).expect("create uploads dir");
 
         let stored = persist_upload_bytes(
             temp.path(),
-            &uploads_dir,
+            &tenant_uploads_dir,
+            "tenant-a",
             Some("file"),
             Some("hello.txt"),
             Some("text/plain"),
@@ -264,27 +289,32 @@ mod tests {
 
         assert!(temp.path().join(&stored.stored_path).exists());
         assert!(
-            uploads_dir
+            tenant_uploads_dir
                 .join(format!("{}.json", stored.upload_id))
                 .exists()
         );
+        assert_eq!(stored.tenant_id, "tenant-a");
         assert_eq!(stored.original_name.as_deref(), Some("hello.txt"));
         assert_eq!(stored.size_bytes, 12);
+        assert!(resolve_stored_upload_path(temp.path(), "tenant-a", &stored.upload_id).is_some());
+        assert!(resolve_stored_upload_path(temp.path(), "tenant-b", &stored.upload_id).is_none());
     }
 
     #[test]
     fn resolve_stored_upload_path_rejects_tampered_metadata_escape() {
         let temp = TempDir::new().expect("temp dir");
         let uploads_dir = temp.path().join(".asterel/gateway/uploads");
-        std::fs::create_dir_all(&uploads_dir).expect("create uploads dir");
+        let tenant_uploads_dir = uploads_dir.join("tenant-a");
+        std::fs::create_dir_all(&tenant_uploads_dir).expect("create uploads dir");
 
         let upload_id = "upl_tampered";
         let outside = temp.path().join("outside.png");
         std::fs::write(&outside, b"outside").expect("write outside file");
         std::fs::write(
-            uploads_dir.join(format!("{upload_id}.json")),
+            tenant_uploads_dir.join(format!("{upload_id}.json")),
             serde_json::to_vec(&serde_json::json!({
                 "upload_id": upload_id,
+                "tenant_id": "tenant-a",
                 "field_name": "file",
                 "original_name": "outside.png",
                 "stored_name": "../../../outside.png",
@@ -297,6 +327,6 @@ mod tests {
         )
         .expect("write metadata");
 
-        assert!(resolve_stored_upload_path(temp.path(), upload_id).is_none());
+        assert!(resolve_stored_upload_path(temp.path(), "tenant-a", upload_id).is_none());
     }
 }

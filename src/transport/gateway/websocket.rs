@@ -340,9 +340,12 @@ async fn handle_chat_client_message(
         return Ok(());
     }
 
-    let image_blocks =
-        resolve_attachment_content_blocks(request.attachments, &state.runtime.config.workspace_dir)
-            .await;
+    let image_blocks = resolve_attachment_content_blocks(
+        request.attachments,
+        &state.runtime.config.workspace_dir,
+        tenant_context.tenant_id.as_deref(),
+    )
+    .await;
 
     let workspace_dir = match websocket_workspace_dir(state, tenant_context).await {
         Ok(workspace_dir) => workspace_dir,
@@ -619,6 +622,7 @@ async fn send_json_message(socket: &mut WebSocket, json: &str) -> Result<(), axu
 async fn resolve_attachment_content_blocks(
     attachments: Option<&[super::events::ClientAttachment]>,
     workspace_dir: &std::path::Path,
+    tenant_id: Option<&str>,
 ) -> Vec<crate::core::providers::response::ContentBlock> {
     use crate::core::providers::response::{ContentBlock, ImageSource};
     use base64::Engine as _;
@@ -628,6 +632,9 @@ async fn resolve_attachment_content_blocks(
     };
 
     let mut blocks = Vec::new();
+    let Some(tenant_id) = tenant_id else {
+        return blocks;
+    };
     for attachment in attachments {
         if !attachment.content_type.starts_with("image/") {
             continue;
@@ -646,9 +653,10 @@ async fn resolve_attachment_content_blocks(
             continue;
         }
 
-        let Some((upload_dir, upload_path)) =
+        let Some((upload_dir, upload_path, stored_content_type)) =
             super::handlers::admin_uploads::resolve_stored_upload_path(
                 workspace_dir,
+                tenant_id,
                 &attachment.upload_id,
             )
         else {
@@ -658,6 +666,15 @@ async fn resolve_attachment_content_blocks(
             );
             continue;
         };
+        let media_type = stored_content_type.unwrap_or_else(|| attachment.content_type.clone());
+        if !media_type.starts_with("image/") {
+            tracing::warn!(
+                upload_id = %attachment.upload_id,
+                content_type = %media_type,
+                "rejected upload: stored content type is not an image"
+            );
+            continue;
+        }
 
         let canonical = match tokio::fs::canonicalize(&upload_path).await {
             Ok(path) => path,
@@ -704,7 +721,7 @@ async fn resolve_attachment_content_blocks(
         let encoded = base64::engine::general_purpose::STANDARD.encode(&data);
         blocks.push(ContentBlock::Image {
             source: ImageSource::Base64 {
-                media_type: attachment.content_type.clone(),
+                media_type,
                 data: encoded,
             },
         });
@@ -836,7 +853,7 @@ mod tests {
     #[tokio::test]
     async fn attachment_resolution_reads_from_gateway_upload_store_metadata() {
         let temp = TempDir::new().expect("temp dir");
-        let uploads_dir = temp.path().join(".asterel/gateway/uploads");
+        let uploads_dir = temp.path().join(".asterel/gateway/uploads/tenant-a");
         std::fs::create_dir_all(&uploads_dir).expect("create uploads dir");
 
         let upload_id = "upl_test_attachment";
@@ -846,12 +863,13 @@ mod tests {
             uploads_dir.join(format!("{upload_id}.json")),
             serde_json::to_vec_pretty(&serde_json::json!({
                 "upload_id": upload_id,
+                "tenant_id": "tenant-a",
                 "field_name": "file",
                 "original_name": "diagram.png",
                 "stored_name": stored_name,
                 "content_type": "image/png",
                 "size_bytes": 9,
-                "stored_path": ".asterel/gateway/uploads/upl_test_attachment-diagram.png",
+                "stored_path": ".asterel/gateway/uploads/tenant-a/upl_test_attachment-diagram.png",
                 "source_ref": format!("admin-upload:{upload_id}"),
             }))
             .expect("serialize metadata"),
@@ -865,6 +883,7 @@ mod tests {
                 content_type: "image/png".to_string(),
             }]),
             temp.path(),
+            Some("tenant-a"),
         )
         .await;
 
@@ -878,5 +897,17 @@ mod tests {
             }
             other => panic!("expected image content block, got {other:?}"),
         }
+
+        let foreign_blocks = resolve_attachment_content_blocks(
+            Some(&[ClientAttachment {
+                upload_id: upload_id.to_string(),
+                filename: "diagram.png".to_string(),
+                content_type: "image/png".to_string(),
+            }]),
+            temp.path(),
+            Some("tenant-b"),
+        )
+        .await;
+        assert!(foreign_blocks.is_empty());
     }
 }
