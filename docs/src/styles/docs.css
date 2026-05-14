@@ -19,6 +19,7 @@
   --sl-font: var(--ai-font-body);
   --sl-font-mono: "Cascadia Code", "SFMono-Regular", "Menlo", "Noto Sans JP", "Yu Gothic UI", monospace;
   --sl-content-width: 49rem;
+  --ai-toc-width: 17rem;
   --sl-text-5xl: 3.1rem;
   --sl-text-4xl: 2.35rem;
   --sl-text-3xl: 1.85rem;
@@ -101,6 +102,13 @@ body {
 
 .sl-container {
   max-width: min(100%, 78rem);
+  min-width: 0;
+}
+
+.main-frame,
+.main-pane,
+.content-panel {
+  min-width: 0;
 }
 
 .sl-markdown-content {
@@ -108,6 +116,8 @@ body {
   font-size: 1.0625rem;
   line-height: 1.7;
   hanging-punctuation: first last;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .sl-markdown-content > p,
@@ -124,6 +134,10 @@ body {
 
 .sl-markdown-content li {
   text-wrap: pretty;
+}
+
+.sl-markdown-content :where(p, li, blockquote, td, th, a, code:not(pre code)) {
+  overflow-wrap: anywhere;
 }
 
 .sl-markdown-content li + li {
@@ -217,6 +231,7 @@ h1[data-page-title] {
 .sl-markdown-content pre,
 .expressive-code {
   max-width: 100%;
+  overflow-x: auto;
 }
 
 .sl-markdown-content pre {
@@ -225,11 +240,16 @@ h1[data-page-title] {
 }
 
 .sl-markdown-content table {
-  display: table;
+  display: block;
   width: 100%;
+  max-inline-size: 100%;
   margin-block: 1.8rem;
   border: 1px solid var(--ai-line);
   border-spacing: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sl-markdown-content .table-summary {
@@ -358,6 +378,13 @@ h1[data-page-title] {
 
 .right-sidebar-panel {
   border-left: 1px solid var(--ai-line);
+  max-inline-size: var(--ai-toc-width);
+  overflow-wrap: anywhere;
+}
+
+.right-sidebar-panel .sl-container {
+  max-inline-size: 100%;
+  min-inline-size: 0;
 }
 
 .right-sidebar a {
@@ -368,6 +395,16 @@ h1[data-page-title] {
   border: 1px solid var(--ai-line);
   border-radius: 0;
   background: var(--ai-surface);
+}
+
+@media (min-width: 72rem) {
+  .right-sidebar-container {
+    width: min(
+      var(--ai-toc-width),
+      calc(var(--sl-sidebar-width) + (100% - var(--sl-content-width) - var(--sl-sidebar-width)) / 2)
+    );
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 52rem) {
@@ -400,12 +437,11 @@ h1[data-page-title] {
     min-height: auto;
   }
 
+  .right-sidebar-panel {
+    max-inline-size: none;
+  }
+
   .sl-markdown-content table {
-    display: block;
     max-inline-size: calc(100vw - 2rem);
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-gutter: stable;
-    -webkit-overflow-scrolling: touch;
   }
 }
