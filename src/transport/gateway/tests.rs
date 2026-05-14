@@ -2993,6 +2993,31 @@ async fn admin_tenants_list_is_scoped_to_bound_principal_tenant() {
 }
 
 #[tokio::test]
+async fn tenant_scoped_headers_must_match_bound_paired_bearer_tenant() {
+    let tmp = TempDir::new().unwrap();
+    let token = "admin-token";
+    let state = make_paired_admin_state(&tmp, token);
+    let headers = paired_admin_headers(token);
+
+    let Json(_) = super::handlers::admin_tenants::handle_admin_set_tenant_context(
+        State(state.clone()),
+        headers,
+        Json(super::handlers::admin_tenants::TenantContextSetBody {
+            tenant_id: Some("tenant-a".to_string()),
+        }),
+    )
+    .await
+    .expect("tenant context should persist");
+
+    let foreign_headers = paired_admin_headers_for_tenant(token, "tenant-b");
+    let error = super::handlers::request_management_policy_context(&state, &foreign_headers)
+        .expect_err("bound bearer must not claim another tenant");
+
+    assert_eq!(error.0, StatusCode::FORBIDDEN);
+    assert_eq!(error.1.0["code"], "tenant_scope_mismatch");
+}
+
+#[tokio::test]
 async fn admin_tenant_endpoints_allow_unscoped_paired_bearer_for_bootstrap() {
     let tmp = TempDir::new().unwrap();
     let token = "admin-token";

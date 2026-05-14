@@ -227,6 +227,18 @@ impl PairingGuard {
         if !self.require_pairing {
             return true;
         }
+        self.is_accepted_token(token)
+    }
+
+    /// Check whether a bearer token matches a persisted paired token.
+    ///
+    /// Unlike [`Self::is_authenticated`], this never treats disabled pairing as
+    /// universal authentication. Use this when deriving an identity/principal
+    /// from a bearer token, even on gateways that allow unauthenticated ingress.
+    pub fn is_accepted_token(&self, token: &str) -> bool {
+        if token.is_empty() {
+            return false;
+        }
         let hashed = hash_token(token);
         let now = current_unix_seconds();
 
@@ -559,6 +571,15 @@ mod tests {
         let guard = PairingGuard::new(false, &[], None);
         assert!(guard.is_authenticated("anything"));
         assert!(guard.is_authenticated(""));
+    }
+
+    #[test]
+    fn is_accepted_token_requires_persisted_token_even_when_pairing_disabled() {
+        let guard = PairingGuard::new(false, &[hash_token("zc_valid")], None);
+        assert!(guard.is_authenticated("anything"));
+        assert!(guard.is_accepted_token("zc_valid"));
+        assert!(!guard.is_accepted_token("zc_invalid"));
+        assert!(!guard.is_accepted_token(""));
     }
 
     #[test]

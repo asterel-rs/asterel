@@ -36,7 +36,7 @@ pub(in super::super) fn verified_source_identifier_from_headers(
 ) -> String {
     if state.access.pairing.is_paired()
         && let Some(token) = bearer_token(headers)
-        && state.access.pairing.is_authenticated(token)
+        && state.access.pairing.is_accepted_token(token)
     {
         return hashed_auth_principal(token);
     }
