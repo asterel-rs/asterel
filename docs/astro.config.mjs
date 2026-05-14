@@ -89,6 +89,11 @@ export default defineConfig({
               slug: 'concepts/memory-model',
             },
             {
+              label: "Asterel's silhouette",
+              translations: { ja: 'Asterel の輪郭' },
+              slug: 'concepts/asterel-silhouette',
+            },
+            {
               label: 'Character and persona',
               translations: { ja: 'キャラクターと人格' },
               slug: 'concepts/character-persona',
