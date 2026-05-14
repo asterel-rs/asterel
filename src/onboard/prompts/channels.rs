@@ -14,21 +14,26 @@ use crate::config::{
 use crate::onboard::domain::parse_allowlist;
 use crate::ui::style as ui;
 
+/// Run the interactive channel-setup menu starting from `starting`.
+///
+/// Callers pass the current `ChannelsConfig` they wish to modify; this
+/// keeps repair / re-entry flows from wiping channels the operator did
+/// not explicitly touch in the wizard. Pass `ChannelsConfig::default()`
+/// for a fresh onboard.
+///
 /// # Errors
 ///
 /// Returns an error when interactive prompts fail or channel inputs are
 /// invalid.
-pub(crate) async fn setup_channels() -> Result<ChannelsConfig> {
+pub(crate) async fn setup_channels(starting: ChannelsConfig) -> Result<ChannelsConfig> {
     print_bullet(&t!("onboard.channels.intro"));
     print_bullet(&t!("onboard.channels.cli_always"));
     println!();
 
-    let mut config = ChannelsConfig {
-        cli: true,
-        coalescing_window_ms: 0,
-        coalescing_max_messages: 4,
-        ..ChannelsConfig::default()
-    };
+    let mut config = starting;
+    // CLI is always available, regardless of what the operator carried
+    // in from disk. Force it on after preserving the rest.
+    config.cli = true;
 
     loop {
         let options = build_channel_menu_options(&config);

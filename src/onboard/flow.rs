@@ -173,7 +173,7 @@ async fn run_advanced_flow(
     let (provider, api_key, model, oauth_source) = setup_provider().await?;
 
     cliclack::log::step("Step 3: Channels")?;
-    let channels_config = setup_channels().await?;
+    let channels_config = setup_channels(ChannelsConfig::default()).await?;
 
     cliclack::log::step("Step 4: Tunnel")?;
     let tunnel_config = setup_tunnel()?;
@@ -281,7 +281,9 @@ pub async fn run_channels_repair_wizard() -> Result<(Config, bool)> {
     let mut config = Config::load_or_init()?;
 
     print_step(1, 1, &t!("onboard.step.channels"));
-    config.channels_config = setup_channels().await?;
+    // Pass existing channels through so the wizard preserves any
+    // channels the operator does not touch. See Issue #10.
+    config.channels_config = setup_channels(config.channels_config.clone()).await?;
     config.save()?;
 
     println!();
