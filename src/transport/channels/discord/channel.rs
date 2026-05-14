@@ -142,10 +142,14 @@ impl DiscordChannel {
         }))
     }
 
+    // The guild allowlist bounds public-channel exposure. DM events
+    // carry no guild_id and represent a separate surface that the
+    // operator opens explicitly per user, so the guild filter must
+    // not collaterally suppress them.
     pub(super) fn matches_guild_filter(&self, guild_id: Option<&str>) -> bool {
-        match &self.config.guild_id {
-            Some(gid) => guild_id.is_some_and(|g| g == gid),
-            None => true,
+        match (&self.config.guild_id, guild_id) {
+            (Some(configured), Some(event)) => configured == event,
+            _ => true,
         }
     }
 
@@ -518,7 +522,16 @@ mod tests {
         let ch = DiscordChannel::new(cfg);
         assert!(ch.matches_guild_filter(Some("my-guild")));
         assert!(!ch.matches_guild_filter(Some("other-guild")));
-        assert!(!ch.matches_guild_filter(None));
+    }
+
+    #[test]
+    fn guild_filter_permits_dm_when_guild_restricted() {
+        let mut cfg = test_config();
+        cfg.guild_id = Some("my-guild".into());
+        let ch = DiscordChannel::new(cfg);
+        // DM events have no guild context; the operator's guild allowlist
+        // must not collaterally suppress direct-message surfaces.
+        assert!(ch.matches_guild_filter(None));
     }
 
     #[test]
