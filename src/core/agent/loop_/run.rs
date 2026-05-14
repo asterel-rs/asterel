@@ -491,7 +491,7 @@ async fn run_session_cli_interactive(
 ) -> Result<(u64, bool)> {
     let mut state = InteractiveState::new(config.inference.default_thinking_level);
 
-    println!("🦀 Asterel Interactive Mode");
+    println!("🐢 Asterel Interactive Mode");
     println!("Type /quit to exit.\n");
 
     while let Some(content) = cli_rx.recv().await {

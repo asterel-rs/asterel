@@ -493,7 +493,7 @@ mod tests {
 
         assert!(prompt.contains("You are Asterel"));
         assert!(prompt.contains("## Persona"));
-        assert!(prompt.contains("Rust-forged AI"));
+        assert!(prompt.contains("listens for the shape"));
         assert!(prompt.contains("## Safety"));
         assert!(prompt.contains("Do not exfiltrate private data"));
         assert!(prompt.contains("## Prompt Confidentiality"));
