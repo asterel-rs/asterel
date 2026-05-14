@@ -54,3 +54,9 @@ A voice-first companion can be valuable, but it proves a different product shape
 ## It is not a desktop product
 
 The `desktop/` console exists as an **operator surface** — governance, diagnostics, admin workflows, memory review. It is not where users meet the companion. Users meet the companion in Discord (primary), or in other channels that feed the shared companion-turn contract.
+
+## It is not an AI VTuber
+
+AI VTubers — Neuro-sama, 紡ネン, and the wider streaming-AI scene — optimise around what makes a stream alive: high utterance rate, immediate response, accident-friendliness, clippable moments, fan participation. The aliveness lives in the next minute. Asterel optimises in the opposite direction: non-speaking time, relational continuity, memory as accumulating responsibility, distance as a feature rather than a problem to overcome. The aliveness, if any, lives in the next month.
+
+Adapters, surfaces, and operator infrastructure could in principle support streaming. Asterel may borrow a streaming body when an operator chooses to lend one, but the product centre is not streaming and the silhouette is not a stage voice. What holds the character together is what stays the same when the camera is off.
