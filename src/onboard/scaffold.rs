@@ -35,7 +35,7 @@ fn render(template: &str, agent: &str, user: &str, tz: &str, comm_style: &str) -
 /// files fails.
 pub(crate) fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Result<()> {
     let agent = if ctx.agent_name.is_empty() {
-        "Asterel"
+        "Agent"
     } else {
         &ctx.agent_name
     };
@@ -237,8 +237,8 @@ mod tests {
 
         let character = std::fs::read_to_string(dir.join("CHARACTER.md")).unwrap();
         assert!(
-            character.contains("Asterel"),
-            "empty agent_name should default to Asterel"
+            character.contains("Agent"),
+            "empty agent_name should default to Agent"
         );
     }
 }

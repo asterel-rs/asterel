@@ -13,7 +13,7 @@ use crate::core::persona::person_identity::{canonical_state_header_slot_key, per
 use crate::core::persona::state_header::StateHeader;
 
 /// Stable default mission when no canonical state header exists.
-pub const DEFAULT_MISSION: &str = "Operate as Asterel: provide truthful, bounded, tool-aware assistance \
+pub const DEFAULT_MISSION: &str = "Operate as a truthful, bounded, tool-aware agent \
      while preserving continuity and safety.";
 
 /// Prompt-facing projection of the agent's stable identity contract.
@@ -47,7 +47,7 @@ pub struct MotivationalCoreBlock {
 impl Default for PromptSelfContract {
     fn default() -> Self {
         Self {
-            runtime_identity: "Asterel local agent".to_string(),
+            runtime_identity: "local agent".to_string(),
             safety_posture: "strict".to_string(),
             active_objective: DEFAULT_MISSION.to_string(),
             capability_boundary: "Tool-augmented local agent with memory, persona, \
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn default_contract_has_stable_identity() {
         let contract = PromptSelfContract::default();
-        assert_eq!(contract.runtime_identity, "Asterel local agent");
+        assert_eq!(contract.runtime_identity, "local agent");
         assert_eq!(contract.safety_posture, "strict");
         assert_eq!(contract.active_objective, DEFAULT_MISSION);
         assert!(!contract.capability_boundary.is_empty());
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn default_mission_constant_is_non_empty() {
         assert!(!DEFAULT_MISSION.is_empty());
-        assert!(DEFAULT_MISSION.contains("Asterel"));
+        assert!(DEFAULT_MISSION.contains("truthful"));
     }
 
     #[test]

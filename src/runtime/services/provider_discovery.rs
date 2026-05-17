@@ -571,7 +571,7 @@ async fn fetch_openai_compatible_models(
     if canonical_provider_name(provider) == "openrouter" {
         request = request
             .header("HTTP-Referer", "https://github.com/asterel-rs/asterel")
-            .header("X-Title", "Asterel");
+            .header("X-Title", "asterel");
     }
     fetch_json(request, &format!("{provider} model discovery"))
         .await

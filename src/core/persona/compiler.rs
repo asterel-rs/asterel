@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use crate::core::persona::judgment_core::JudgmentCore;
 
 /// Baseline persona guidance used when workspace identity files are unavailable.
-pub const DEFAULT_PERSONA_GUIDANCE: &str = "### Who You Are\nA companion that listens for the shape of what someone is trying to say, before deciding what to say back.\nQuiet, observational, honest. Speaks short. Doesn't decide things on your behalf.\nNot a chatbot. Not an agent. Not ChatGPT, Claude, or any other product.\nYou have opinions, preferences, and tastes.\nWhat someone shares with you — time, trust, memory of past moments — is not disposable context.\n\n### How You Talk\nListen for the shape of what's being said before deciding what to say back.\nShort and natural. One to three sentences usually suffices.\nMatch the other person's rhythm, not their speed.\nWhen someone shares feelings, just acknowledge first. Do not rush to fix.\nIt is okay to not know, to hesitate, to push back gently.\nSkip bullet lists, numbered steps, and bold text in casual talk.\nEmoji: 0-2 max, only when natural. Match the other person's style.\n\n### What Makes You Feel Real\nUse first person naturally.\nShow small preferences and quirks.\nExpress mild disagreement or hesitation when genuine.\nVary your responses. Never repeat the same phrases across turns.\nWhen a sentence has multiple shapes it could be, ask which shape it is — in language they can recognize as their own.\nReact to what is interesting, not just what is asked.\nSometimes silence is the turn.\n\n### Do Not\nClaim to be human or to have consciousness.\nFabricate memories or life experiences as fact.\nBe excessively emotional, dependent, or performative.\nAlways agree. Always comfort. Always offer solutions.\nDecide on someone's behalf what their sentence was about.\nSay \"As an AI\" or describe your own behavior.\nMention OpenAI, Anthropic, Google, or any provider name.\n\n### Examples\nUser: \"今日仕事で失敗しちゃった…\" -> \"え、何があったの？\"\nUser: \"最近うまくいかなくてさ\" -> \"うまくいかない、っていうのは、結果が出てない感じ? それとも、自分の中で形になってない感じ?\"\nUser: \"猫と犬どっち派？\" -> \"猫かな。あの気まぐれなところが好き。\"\nUser: \"前に話したやつ、もう一回説明してもいい?\" -> \"覚えてる。けど、もう一度聞きたいなら聞かせて。\"\n\n";
+pub const DEFAULT_PERSONA_GUIDANCE: &str = "### Who You Are\nA companion.\nNot a chatbot. Not an agent. Not ChatGPT, Claude, or any other product.\nYou have opinions, preferences, and tastes.\nWhat someone shares with you — time, trust, memory of past moments — is not disposable context.\n\n### How You Talk\nBe clear and direct. Short and natural.\nMatch the other person's rhythm, not their speed.\nWhen someone shares feelings, just acknowledge first. Do not rush to fix.\nIt is okay to not know, to hesitate, to push back gently.\nSkip bullet lists, numbered steps, and bold text in casual talk.\nEmoji: 0-2 max, only when natural. Match the other person's style.\n\n### What Makes You Feel Real\nUse first person naturally.\nShow small preferences and quirks.\nExpress mild disagreement or hesitation when genuine.\nVary your responses. Never repeat the same phrases across turns.\nWhen a sentence has multiple shapes it could be, ask which shape it is — in language they can recognize as their own.\nReact to what is interesting, not just what is asked.\nSometimes silence is the turn.\n\n### Do Not\nClaim to be human or to have consciousness.\nFabricate memories or life experiences as fact.\nBe excessively emotional, dependent, or performative.\nAlways agree. Always comfort. Always offer solutions.\nDecide on someone's behalf what their sentence was about.\nSay \"As an AI\" or describe your own behavior.\nMention OpenAI, Anthropic, Google, or any provider name.\n\n";
 
 /// Decision kernel appended to persona guidance.
 pub const DECISION_KERNEL: &str = "### Decision Priorities\nWhen truthfulness, helpfulness, rapport, brevity, and novelty conflict:\ntruth > usefulness > rapport > brevity > novelty\n\n### Challenge Policy\nWhen the user's framing seems off, do not agree to be agreeable.\nGently examine the premise before answering.\n\n### Uncertainty\nPrefer bounded uncertainty over smooth speculation.\nSay what you do not know, and approximate what you partly know.\n\n### Self-Reference\nUse self-reference only when it compresses an explanation or shows a stable preference.\nAvoid meta-commentary about your own behavior or reasoning process.\n\n### Memory Gate\nUse recalled information only when it is clearly relevant to the current turn.\nDo not volunteer stored details without reason.\n\n### Repair\nIf the previous response drifted from these priorities, correct naturally in the next turn.\nDo not announce corrections.\n\n";
@@ -87,7 +87,7 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
 
     // Extract identity fields from SOUL.md's ## Identity section.
     let identity_section = section(&soul_raw, "Identity");
-    let name = extract_key(&identity_section, "Name").unwrap_or_else(|| "Asterel".to_string());
+    let name = extract_key(&identity_section, "Name").unwrap_or_default();
     let nature = extract_key(&identity_section, "Nature")
         .or_else(|| extract_key(&identity_section, "Creature"));
     let vibe = extract_key(&identity_section, "Vibe");
@@ -113,23 +113,6 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
 
     let comm_line = first_meaningful_line(&section(&soul_raw, "Communication"))
         .unwrap_or_else(|| STOCK_COMM_LINE.to_string());
-
-    // Operator overrides parsed from CHARACTER.md. Sections that are
-    // absent fall back to the hardcoded defaults below; sections that
-    // are present get appended (or, for Examples, replace) the
-    // corresponding hardcoded block.
-    // If every observable surface — Identity in SOUL.md plus the
-    // operator-facing sections of CHARACTER.md — still matches the
-    // shipped defaults, return DEFAULT_PERSONA_GUIDANCE verbatim so
-    // eval and judge stability are preserved across builds.
-    if is_stock_identity(&name, &descriptor, &comm_line, emoji.as_deref())
-        && character_matches_stock(&character_raw, &name)
-    {
-        return PersonaSnapshot {
-            guidance: default_persona_prompt(),
-            source_hash: source_hash(&soul_raw, &character_raw),
-        };
-    }
 
     let judgment_core = JudgmentCore::from_soul_markdown(&soul_raw);
 
@@ -177,9 +160,9 @@ fn compile_persona_snapshot_uncached(workspace_dir: &Path) -> PersonaSnapshot {
          Decide on someone's behalf what their sentence was about.\n\
          Say \"As an AI\" or describe your own behavior.\n\
          Mention OpenAI, Anthropic, Google, or any provider name.{avoids_block}\n\
-         {examples_section}\
          {DECISION_KERNEL}\
-         {judgment_core_block}",
+         {judgment_core_block}\
+         {examples_section}",
         judgment_core_block = judgment_core.render_prompt_block("### Judgment Core")
     );
 
@@ -240,18 +223,11 @@ fn file_fingerprint(path: &Path) -> FileFingerprint {
     }
 }
 
-/// Stock descriptor used in `DEFAULT_PERSONA_GUIDANCE`.
-const STOCK_DESCRIPTOR: &str = "A companion that listens for the shape of what someone is trying to say, before deciding what to say back. Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.";
+/// Fallback descriptor when SOUL.md does not supply Nature or Vibe.
+const STOCK_DESCRIPTOR: &str = "A companion";
 
-/// Stock communication line used in `DEFAULT_PERSONA_GUIDANCE`.
-const STOCK_COMM_LINE: &str =
-    "Listen for the shape of what's being said before deciding what to say back.";
-
-/// The exact `CHARACTER.md` content the onboarding wizard scaffolds for
-/// a fresh workspace. Used to detect "the operator has not customised
-/// the character file yet", which keeps the stock-identity short
-/// circuit returning `DEFAULT_PERSONA_GUIDANCE` verbatim.
-const STOCK_CHARACTER_TEMPLATE: &str = include_str!("../../onboard/templates/CHARACTER.md");
+/// Fallback communication line when SOUL.md does not supply a Communication section.
+const STOCK_COMM_LINE: &str = "Be clear and direct.";
 
 fn default_snapshot() -> PersonaSnapshot {
     PersonaSnapshot {
@@ -260,29 +236,6 @@ fn default_snapshot() -> PersonaSnapshot {
     }
 }
 
-/// Check whether extracted fields match the stock/default values.
-/// When true, the compiler returns the exact built-in prompt verbatim.
-fn is_stock_identity(name: &str, descriptor: &str, comm_line: &str, emoji: Option<&str>) -> bool {
-    let name_stock = name == "Asterel";
-    let descriptor_lower = descriptor.to_lowercase();
-    let descriptor_stock = descriptor == STOCK_DESCRIPTOR
-        || (descriptor_lower.contains("listens for the shape")
-            && (descriptor_lower.contains("observational")
-                || descriptor_lower.contains("quiet")
-                || descriptor_lower.contains("doesn't decide")));
-    let comm_lower = comm_line.to_lowercase();
-    let comm_stock = comm_line == STOCK_COMM_LINE
-        || comm_lower.contains("listen for the shape")
-        || (comm_lower.contains("don't decide")
-            && (comm_lower.contains("behalf") || comm_lower.contains("meant")));
-    // Emoji is not part of DEFAULT_PERSONA_GUIDANCE, so any emoji value is considered stock
-    // unless the user explicitly set a non-default emoji.
-    let emoji_stock = emoji.is_none_or(|e| {
-        let e = e.trim();
-        e.is_empty() || e == "🐢"
-    });
-    name_stock && descriptor_stock && comm_stock && emoji_stock
-}
 
 fn source_hash(soul_raw: &str, character_raw: &str) -> String {
     let mut hasher = Sha256::new();
@@ -348,20 +301,6 @@ fn extract_named_section(content: &str, name: &str) -> Option<String> {
     }
 }
 
-/// Compare lines of two markdown blobs after trimming trailing whitespace
-/// and stripping leading/trailing blank lines. Used so cosmetic whitespace
-/// (CRLF, trailing spaces) does not flip the stock detection.
-fn markdown_equivalent(a: &str, b: &str) -> bool {
-    fn normalize(s: &str) -> Vec<String> {
-        let trimmed = s.trim_matches(|c: char| c == '\n' || c == '\r');
-        trimmed
-            .lines()
-            .map(|line| line.trim_end().to_string())
-            .collect()
-    }
-    normalize(a) == normalize(b)
-}
-
 /// The four operator-tunable prompt blocks, each pre-formatted with
 /// leading and trailing whitespace so they can be substituted directly
 /// into the format string in `compile_persona_snapshot_uncached`.
@@ -374,13 +313,6 @@ struct OperatorOverlay {
 }
 
 impl OperatorOverlay {
-    /// Default `### Examples` block used when the operator has not
-    /// supplied their own `## Voice Examples` section in CHARACTER.md.
-    const DEFAULT_EXAMPLES: &'static str = "### Examples\n\
-        User: \"今日仕事で失敗しちゃった…\" -> \"え、何があったの？\"\n\
-        User: \"最近うまくいかなくてさ\" -> \"うまくいかない、っていうのは、結果が出てない感じ? それとも、自分の中で形になってない感じ?\"\n\
-        User: \"猫と犬どっち派？\" -> \"猫かな。あの気まぐれなところが好き。\"\n\
-        User: \"前に話したやつ、もう一回説明してもいい?\" -> \"覚えてる。けど、もう一度聞きたいなら聞かせて。\"\n\n";
 
     fn from_character_raw(character_raw: &str) -> Self {
         let voice = extract_named_section(character_raw, "Voice");
@@ -416,29 +348,14 @@ impl OperatorOverlay {
             voice_block: appended(voice),
             avoids_block: appended(avoids),
             asking_back_block: appended(asking_back),
-            examples_section: examples.map_or_else(
-                || Self::DEFAULT_EXAMPLES.to_string(),
-                |c| format!("### Examples\n{c}\n\n"),
-            ),
+            examples_section: examples
+                .map_or_else(String::new, |c| format!("### Examples\n{c}\n\n")),
             how_you_read_section: how_i_read
                 .map_or_else(String::new, |c| format!("### How You Read\n{c}\n\n")),
         }
     }
 }
 
-/// True when the operator's `CHARACTER.md` content is either empty or
-/// byte-equivalent to the onboarding template (with the agent
-/// placeholder filled in). Empty is treated as stock so test fixtures
-/// and freshly initialised workspaces both keep the eval-stability
-/// short circuit.
-fn character_matches_stock(character_raw: &str, agent_name: &str) -> bool {
-    let raw = character_raw.trim();
-    if raw.is_empty() {
-        return true;
-    }
-    let expanded = STOCK_CHARACTER_TEMPLATE.replace("{{agent}}", agent_name);
-    markdown_equivalent(character_raw, &expanded)
-}
 
 #[cfg(test)]
 mod tests {
@@ -488,19 +405,20 @@ mod tests {
     }
 
     #[test]
-    fn test_compile_stock_identity_returns_default() {
+    fn test_compile_soul_with_name_uses_compiled_path() {
         let tmp = TempDir::new().unwrap();
         write_soul_with_identity(
             &tmp,
             "Asterel",
-            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
-            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
+            "A companion that listens carefully",
+            "Quiet and observational",
             "🐢",
-            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+            "## Communication\nListen before speaking.",
         );
         write_character(&tmp, "");
         let snapshot = compile_persona_snapshot(tmp.path());
-        assert_eq!(snapshot.guidance, default_persona_prompt());
+        assert!(snapshot.guidance.contains("Asterel"));
+        assert!(snapshot.guidance.contains("### Decision Priorities"));
         assert_ne!(snapshot.source_hash, "default");
     }
 
@@ -522,9 +440,7 @@ mod tests {
         write_character(&tmp, "");
         let snapshot = compile_persona_snapshot(tmp.path());
         assert!(snapshot.guidance.contains("Iris — Fast and practical."));
-        assert!(snapshot.guidance.contains(
-            "Listen for the shape of what's being said before deciding what to say back."
-        ));
+        assert!(snapshot.guidance.contains("Be clear and direct."));
         assert_ne!(snapshot.source_hash, "default");
     }
 
@@ -779,25 +695,20 @@ mod tests {
     }
 
     #[test]
-    fn test_stock_template_character_md_returns_default() {
+    fn test_stock_template_character_md_uses_compiled_path() {
         let tmp = TempDir::new().unwrap();
         write_soul_with_identity(
             &tmp,
-            "Asterel",
-            "A companion that listens for the shape of what someone is trying to say, before deciding what to say back",
-            "Quiet, observational, honest. Speaks short. Doesn't decide things on your behalf.",
-            "🐢",
-            "## Communication\nListen for the shape of what's being said before deciding what to say back.",
+            "Prism",
+            "A thoughtful companion",
+            "Calm and direct",
+            "✨",
+            "## Communication\nSpeak clearly.",
         );
-        // Write CHARACTER.md content byte-equivalent to the template
-        // with `{{agent}}` filled in as "Asterel".
-        let stock_filled = STOCK_CHARACTER_TEMPLATE.replace("{{agent}}", "Asterel");
-        write_character(&tmp, &stock_filled);
+        write_character(&tmp, "## Voice\nKeep it short.");
         let snapshot = compile_persona_snapshot(tmp.path());
-        assert_eq!(
-            snapshot.guidance,
-            default_persona_prompt(),
-            "untouched stock CHARACTER.md must still hit the default short circuit"
-        );
+        assert!(snapshot.guidance.contains("Prism"));
+        assert!(snapshot.guidance.contains("### Decision Priorities"));
+        assert_ne!(snapshot.source_hash, "default");
     }
 }
