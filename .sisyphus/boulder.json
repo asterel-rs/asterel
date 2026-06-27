@@ -1,0 +1,65 @@
+{
+  "active_plan": "/home/haru/Project/asterel/.sisyphus/plans/optimization-first-pass.md",
+  "started_at": "2026-05-12T18:37:29.873Z",
+  "session_ids": [
+    "ses_1e35ae9b5ffeGJTKYRKJJgU4Jz",
+    "ses_1e282c537ffeOpzb1D8WXtIjap",
+    "ses_1e282c3d5ffePYFw9oRsuTrt6H",
+    "ses_1e282c34cffeFxIw54cMfgC5ep"
+  ],
+  "session_origins": {
+    "ses_1e35ae9b5ffeGJTKYRKJJgU4Jz": "direct",
+    "ses_1e282c537ffeOpzb1D8WXtIjap": "appended",
+    "ses_1e282c3d5ffePYFw9oRsuTrt6H": "appended",
+    "ses_1e282c34cffeFxIw54cMfgC5ep": "appended"
+  },
+  "plan_name": "optimization-first-pass",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Capture baseline measurements and create reusable fixtures",
+      "session_id": "ses_1e282c537ffeOpzb1D8WXtIjap",
+      "agent": "explore",
+      "category": "",
+      "updated_at": "2026-05-12T18:40:07.490Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Reduce media byte cloning without breaking multipart retry semantics",
+      "session_id": "ses_1e1bc7a7effe24ILYd9csv4Lb0",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-12T22:31:56.088Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Remove MCP await-under-lock and classify consolidation serialization explicitly",
+      "session_id": "ses_1df179bbfffeiVNfQFieL8uuw6",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T10:53:14.923Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Measure and narrow Prometheus/cache snapshot clone pressure only if material",
+      "session_id": "ses_1defb49e1fferQo7abeB8jEUch",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-13T11:26:07.210Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_1deb3d749ffeVpvsAaFa0356Dg",
+      "agent": "oracle",
+      "category": "",
+      "updated_at": "2026-05-13T12:26:16.897Z"
+    }
+  }
+}
