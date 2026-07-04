@@ -37,7 +37,7 @@ directories  = { version = "6", default-features = false }
 gcp_auth     = "0.12.6"
 toml         = "1"
 shellexpand  = { version = "3.1", default-features = false, features = ["base-0", "tilde"] }
-shlex        = { version = "1", default-features = false, features = ["std"] }
+shlex        = { version = "2", default-features = false, features = ["std"] }
 
 # Logging
 tracing            = { version = "0.1", default-features = false }
@@ -53,7 +53,7 @@ base64 = { version = "0.22", default-features = false, features = ["std"] }
 
 # URL / HTML parsing (link understanding)
 url     = { version = "2", default-features = false }
-scraper = { version = "0.26", optional = true }
+scraper = { version = "0.27", optional = true }
 
 # MIME detection (media pipeline)
 infer = { version = "0.19", optional = true }
@@ -62,7 +62,7 @@ infer = { version = "0.19", optional = true }
 uuid = { version = "1", default-features = false, features = ["v4", "std"] }
 
 # Authenticated encryption (AEAD) for secret store
-chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc", "getrandom"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc", "getrandom"] }
 
 # HMAC for webhook signature verification
 hmac = { version = "0.13", default-features = false }
@@ -81,7 +81,7 @@ zeroize = { version = "1", default-features = false, features = ["derive"] }
 
 # Memory / persistence
 chrono      = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-cron        = { version = "0.16", default-features = false }
+cron        = { version = "0.17", default-features = false }
 # PostgreSQL async driver
 sqlx-core     = { version = "0.8", default-features = false, features = [
     "_rt-tokio", "_tls-rustls-ring-webpki", "chrono", "migrate",
@@ -108,16 +108,16 @@ tokio-rustls      = "0.26"
 webpki-roots      = "1"
 
 axum       = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "ws", "multipart"] }
-tower-http = { version = "0.6", default-features = false, features = ["limit", "timeout", "cors", "fs"] }
+tower-http = { version = "0.7", default-features = false, features = ["limit", "timeout", "cors", "fs"] }
 
 # Streaming (OpenAI-compat SSE, WebSocket)
 async-stream = { version = "0.3", default-features = false }
-rmcp = { version = "1.5.0", features = ["client", "transport-child-process", "transport-io"], optional = true }
+rmcp = { version = "2.1.0", features = ["client", "transport-child-process", "transport-io"], optional = true }
 
 # Intent classifier (ONNX inference)
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
-quick-xml = { version = "0.39.2", default-features = false }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"], optional = true }
+quick-xml = { version = "0.41.0", default-features = false }
 regex = "1.12.3"
 cliclack = "0.5"
 
