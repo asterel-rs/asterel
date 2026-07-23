@@ -73,8 +73,7 @@ pub(super) async fn run_migrations(pool: &Pool<Postgres>) -> PostgresMemoryResul
     )
     .fetch_one(pool)
     .await
-    .map(|row| row.get::<bool, _>(0))
-    .unwrap_or(false);
+    .is_ok_and(|row| row.get::<bool, _>(0));
 
     let current_version = if has_schema {
         query(
@@ -83,8 +82,7 @@ pub(super) async fn run_migrations(pool: &Pool<Postgres>) -> PostgresMemoryResul
         )
         .fetch_one(pool)
         .await
-        .map(|row| row.get::<i32, _>(0))
-        .unwrap_or(0)
+        .map_or(0, |row| row.get::<i32, _>(0))
     } else {
         0
     };
@@ -212,8 +210,7 @@ async fn create_hnsw_index_if_absent(pool: &Pool<Postgres>) -> PostgresMemoryRes
     )
     .fetch_one(pool)
     .await
-    .map(|row| row.get::<bool, _>(0))
-    .unwrap_or(false);
+    .is_ok_and(|row| row.get::<bool, _>(0));
 
     if !has_index {
         let has_embeddings: bool = query(
@@ -224,8 +221,7 @@ async fn create_hnsw_index_if_absent(pool: &Pool<Postgres>) -> PostgresMemoryRes
         )
         .fetch_one(pool)
         .await
-        .map(|row| row.get::<bool, _>(0))
-        .unwrap_or(false);
+        .is_ok_and(|row| row.get::<bool, _>(0));
 
         if has_embeddings {
             query(

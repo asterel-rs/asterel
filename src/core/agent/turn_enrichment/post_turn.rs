@@ -123,13 +123,13 @@ async fn persist_user_summary_for_post_turn(input: &PostTurnInput) -> bool {
             tracing::warn!(%error, "post-turn user message save rejected by write policy");
             record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "rejected");
             return false;
-        } else if let Err(error) = input.mem.append_event(user_event).await {
+        }
+        if let Err(error) = input.mem.append_event(user_event).await {
             tracing::debug!(%error, "post-turn user message save failed");
             record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "failure");
             return false;
-        } else {
-            record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "success");
         }
+        record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "success");
     } else {
         tracing::warn!(
             slot_key = SLOT_CONVERSATION_USER_MSG,
@@ -168,7 +168,8 @@ async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) -> bool 
                 "rejected",
             );
             return false;
-        } else if let Err(error) = input.mem.append_event(response_event).await {
+        }
+        if let Err(error) = input.mem.append_event(response_event).await {
             tracing::debug!(%error, "post-turn assistant response save failed");
             record_post_turn_hook(
                 input.observer.as_ref(),
@@ -176,13 +177,12 @@ async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) -> bool 
                 "failure",
             );
             return false;
-        } else {
-            record_post_turn_hook(
-                input.observer.as_ref(),
-                "autosave_assistant_summary",
-                "success",
-            );
         }
+        record_post_turn_hook(
+            input.observer.as_ref(),
+            "autosave_assistant_summary",
+            "success",
+        );
     } else {
         tracing::warn!(
             slot_key = SLOT_CONVERSATION_ASSISTANT_RESP,

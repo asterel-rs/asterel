@@ -359,8 +359,7 @@ impl PostgresMemory {
         .bind(evict_count)
         .execute(&self.pool)
         .await
-        .map(|r| r.rows_affected())
-        .unwrap_or(0);
+        .map_or(0, |r| r.rows_affected());
 
         if deleted > 0 {
             tracing::info!(deleted, "embedding cache LRU eviction completed");
@@ -730,8 +729,7 @@ impl MemoryGovernance for PostgresMemory {
             let ok = query("SELECT 1 AS ok")
                 .fetch_one(&self.pool)
                 .await
-                .map(|row| row.get::<i32, _>("ok") == 1)
-                .unwrap_or(false);
+                .is_ok_and(|row| row.get::<i32, _>("ok") == 1);
 
             if ok {
                 // Prune rows with expired retention on each health check
