@@ -592,6 +592,7 @@ pub(super) async fn execute_channel_tool_loop(
     let result = run_transport_companion_turn(CompanionTransportTurnRequest {
         runtime: CompanionTurnRuntimeDeps {
             mem: Arc::clone(&rt.mem),
+            auto_save: rt.config.memory.auto_save,
             persona_config: &rt.config.persona,
             session_manager: rt.session_manager.as_deref(),
             working_memory_capacity: rt.config.memory.working_memory_capacity,

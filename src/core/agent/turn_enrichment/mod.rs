@@ -10,8 +10,8 @@
 //! Updates the relationship model and saves compact user/assistant turn summaries
 //! to working memory when the turn contract allows those writeback slots. Working
 //! memory views accumulated during execution are flushed separately via
-//! `flush_working_memory`. These hooks run in a background task and do not block
-//! the caller.
+//! `flush_working_memory`. Required writes complete before delivery-ready output
+//! is returned.
 
 use std::{collections::HashSet, path::Path};
 

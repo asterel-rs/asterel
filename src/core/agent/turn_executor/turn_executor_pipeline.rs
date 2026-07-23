@@ -1,5 +1,5 @@
 use super::turn_executor_metrics::{
-    emit_turn_evidence_trace, emit_turn_output_trace, spawn_post_turn_processing,
+    emit_turn_evidence_trace, emit_turn_output_trace, run_post_turn_processing,
 };
 use super::{
     AgentStateNotifier, Arc, CompanionTurnContract, ContentBlock, ContractMismatchReason, EntityId,
@@ -109,10 +109,12 @@ pub struct TurnWorkingMemorySpec<'a> {
     pub capacity: usize,
 }
 
-/// Data needed to spawn post-turn background processing.
+/// Data needed to complete post-turn processing.
 pub struct TurnPostExecutionSeed {
     /// Memory backend for persisting post-turn events.
     pub mem: Arc<dyn Memory>,
+    /// Whether conversation-derived memory writes are enabled.
+    pub auto_save: bool,
     /// Person ID for relationship and working-memory updates.
     pub person_id: PersonId,
     /// Canonical person entity ID for transport-facing post-turn memory writes.
@@ -159,7 +161,7 @@ pub struct TurnExecutionPlan<'a> {
 }
 
 /// Execute a turn after enriching the system prompt and temperature, then
-/// fire post-turn background hooks.
+/// complete post-turn hooks before returning delivery-ready output.
 ///
 /// `execute_turn` is a closure that receives the enriched `(system_prompt,
 /// temperature)` pair and drives the actual tool loop. This separation lets
@@ -206,12 +208,13 @@ where
     emit_turn_output_trace(&pre_turn, &outcome.result, post_turn_seed.observer.as_ref());
     let mut post_turn_seed = post_turn_seed;
     post_turn_seed.contract = enrichment.contract;
-    spawn_post_turn_processing(
+    run_post_turn_processing(
         post_turn_seed,
         &enrichment.affect,
         &outcome.result,
         working_memory,
-    );
+    )
+    .await?;
     Ok(outcome)
 }
 
