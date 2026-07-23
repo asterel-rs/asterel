@@ -5,8 +5,9 @@
 //! - **`Soft`** — marks `belief_slots.status = 'soft_deleted'` and appends a
 //!   `deletion_ledger` row; normal recall suppresses the slot while audit data
 //!   remains in the database.
-//! - **`Hard`** — physically removes the `belief_slots` row and appends a
-//!   signed `deletion_ledger` entry; the slot is unrecoverable after commit.
+//! - **`Hard`** — physically removes the event log, projections, retrieval
+//!   units, and embedding cache entries for the slot, then appends a signed
+//!   `deletion_ledger` entry and rebuilds the retained event hash chain.
 //! - **`Tombstone`** — writes a `deletion_ledger` row without touching the slot
 //!   itself; used when the forget request must be recorded but the slot has
 //!   already been removed or never existed.
@@ -22,6 +23,7 @@ use super::PostgresMemory;
 use super::error::{PostgresMemoryResult, PostgresMemoryResultExt};
 use crate::contracts::scores::{Confidence, Importance};
 use crate::core::memory::codec;
+use crate::core::memory::embeddings::EmbeddingRole;
 use crate::core::memory::traits::{
     BeliefSlot, ForgetArtifact, ForgetArtifactCheck, ForgetMode, ForgetObservation, ForgetOutcome,
 };
@@ -33,6 +35,13 @@ struct ForgetContext<'a> {
     phase: &'a str,
     reason: &'a str,
     now: &'a str,
+}
+
+struct ForgetApplication {
+    applied: bool,
+    cache_hashes: Vec<String>,
+    projection_ids: Vec<String>,
+    owner_ids: Vec<String>,
 }
 
 impl PostgresMemory {
@@ -152,7 +161,6 @@ impl PostgresMemory {
         mode: ForgetMode,
         reason: &str,
     ) -> PostgresMemoryResult<ForgetOutcome> {
-        let now = chrono::Local::now().to_rfc3339();
         let phase = match mode {
             ForgetMode::Soft => "soft",
             ForgetMode::Hard => "hard",
@@ -164,13 +172,18 @@ impl PostgresMemory {
             .begin()
             .await
             .pg_write("begin forget_slot transaction")?;
+        let now = super::integrity::canonical_db_timestamp(&mut tx).await?;
+
+        if matches!(mode, ForgetMode::Hard | ForgetMode::Tombstone) {
+            super::integrity::lock_memory_event_chain(&mut tx).await?;
+        }
 
         // Insert deletion ledger entry with integrity chain
         Self::insert_deletion_ledger_entry(&mut tx, entity_id, slot_key, phase, reason, &now)
             .await?;
 
         let unit_id = format!("{entity_id}::{slot_key}");
-        let applied =
+        let application =
             Self::apply_forget_mode(&mut tx, entity_id, slot_key, &unit_id, mode, &now).await?;
 
         let forget_ctx = ForgetContext {
@@ -181,23 +194,36 @@ impl PostgresMemory {
             reason,
             now: &now,
         };
-        let artifact_checks = Self::collect_artifact_checks(&mut tx, &forget_ctx, mode).await?;
+        let artifact_checks = Self::collect_artifact_checks(
+            &mut tx,
+            &forget_ctx,
+            mode,
+            &application.cache_hashes,
+            &application.projection_ids,
+        )
+        .await?;
 
         tx.commit()
             .await
             .pg_write("commit forget_slot transaction")?;
 
+        for owner_id in &application.owner_ids {
+            crate::core::memory::graphrag::activation_cache()
+                .invalidate(&crate::contracts::ids::EntityId::new(owner_id))
+                .await;
+        }
+
         Ok(ForgetOutcome::from_checks(
             entity_id,
             slot_key,
             mode,
-            applied,
+            application.applied,
             false,
             artifact_checks,
         ))
     }
 
-    async fn insert_deletion_ledger_entry(
+    pub(super) async fn insert_deletion_ledger_entry(
         tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
         entity_id: &str,
         slot_key: &str,
@@ -252,14 +278,25 @@ impl PostgresMemory {
         unit_id: &str,
         mode: ForgetMode,
         now: &str,
-    ) -> PostgresMemoryResult<bool> {
+    ) -> PostgresMemoryResult<ForgetApplication> {
         match mode {
             ForgetMode::Soft => {
-                Self::apply_soft_delete(tx, entity_id, slot_key, unit_id, now).await
+                let applied =
+                    Self::apply_soft_delete(tx, entity_id, slot_key, unit_id, now).await?;
+                Ok(ForgetApplication {
+                    applied,
+                    cache_hashes: Vec::new(),
+                    projection_ids: Vec::new(),
+                    owner_ids: Vec::new(),
+                })
             }
             ForgetMode::Hard => Self::apply_hard_delete(tx, entity_id, slot_key, unit_id).await,
             ForgetMode::Tombstone => {
-                Self::apply_tombstone(tx, entity_id, slot_key, unit_id, now).await
+                let mut application =
+                    Self::apply_hard_delete(tx, entity_id, slot_key, unit_id).await?;
+                application.applied =
+                    Self::apply_tombstone(tx, entity_id, slot_key, unit_id, now).await?;
+                Ok(application)
             }
         }
     }
@@ -295,26 +332,201 @@ impl PostgresMemory {
         Ok(result.rows_affected() > 0)
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn apply_hard_delete(
         tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
         entity_id: &str,
         slot_key: &str,
-        unit_id: &str,
-    ) -> PostgresMemoryResult<bool> {
-        let result = query("DELETE FROM belief_slots WHERE entity_id = $1 AND slot_key = $2")
-            .bind(entity_id)
-            .bind(slot_key)
+        _unit_id: &str,
+    ) -> PostgresMemoryResult<ForgetApplication> {
+        let target_rows = query(
+            "WITH RECURSIVE targets(entity_id, slot_key) AS ( \
+                SELECT $1::text, $2::text \
+                UNION \
+                SELECT md.derived_entity_id, md.derived_slot_key \
+                FROM memory_derivations md \
+                JOIN targets source ON source.entity_id = md.source_entity_id \
+                    AND source.slot_key = md.source_slot_key \
+             ) SELECT entity_id, slot_key FROM targets",
+        )
+        .bind(entity_id)
+        .bind(slot_key)
+        .fetch_all(&mut **tx)
+        .await
+        .pg_query("resolve hard-delete memory lineage")?;
+        let targets = target_rows
+            .iter()
+            .map(|row| {
+                (
+                    row.get::<String, _>("entity_id"),
+                    row.get::<String, _>("slot_key"),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let mut event_rows = Vec::new();
+        for (target_entity_id, target_slot_key) in &targets {
+            event_rows.extend(
+                query(
+                    "SELECT event_id, value FROM memory_events \
+                     WHERE entity_id = $1 AND slot_key = $2",
+                )
+                .bind(target_entity_id)
+                .bind(target_slot_key)
+                .fetch_all(&mut **tx)
+                .await
+                .pg_query("fetch hard-delete memory events")?,
+            );
+        }
+        let event_ids = event_rows
+            .iter()
+            .map(|row| row.get::<String, _>("event_id"))
+            .collect::<Vec<_>>();
+        let event_graph_ids = event_ids
+            .iter()
+            .map(|event_id| format!("event::{event_id}"))
+            .collect::<Vec<_>>();
+        let cache_hashes = event_rows
+            .iter()
+            .flat_map(|row| {
+                let value = row.get::<String, _>("value");
+                [
+                    PostgresMemory::content_hash(EmbeddingRole::Document, &value),
+                    PostgresMemory::content_hash(EmbeddingRole::Query, &value),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let slot_graph_ids = targets
+            .iter()
+            .map(|(target_entity_id, target_slot_key)| {
+                format!("slot::{target_entity_id}::{target_slot_key}")
+            })
+            .collect::<Vec<_>>();
+        let mut graph_artifact_ids = event_graph_ids.clone();
+        graph_artifact_ids.extend(slot_graph_ids.iter().cloned());
+        let parent_rows = query(
+            "WITH RECURSIVE parents(graph_entity_id) AS ( \
+                SELECT parent_graph_entity_id FROM graph_entities \
+                WHERE graph_entity_id = ANY($1) AND parent_graph_entity_id IS NOT NULL \
+                UNION \
+                SELECT ge.parent_graph_entity_id FROM graph_entities ge \
+                JOIN parents child ON child.graph_entity_id = ge.graph_entity_id \
+                WHERE ge.parent_graph_entity_id IS NOT NULL \
+             ) SELECT graph_entity_id FROM parents",
+        )
+        .bind(&graph_artifact_ids)
+        .fetch_all(&mut **tx)
+        .await
+        .pg_query("resolve hard-delete graph lineage")?;
+        let parent_ids = parent_rows
+            .iter()
+            .map(|row| row.get::<String, _>("graph_entity_id"))
+            .collect::<Vec<_>>();
+        graph_artifact_ids.extend(parent_ids.iter().cloned());
+        graph_artifact_ids.sort();
+        graph_artifact_ids.dedup();
+
+        query(
+            "UPDATE graph_entities SET parent_graph_entity_id = NULL, promoted_at = NULL \
+             WHERE parent_graph_entity_id = ANY($1) AND NOT (graph_entity_id = ANY($2))",
+        )
+        .bind(&parent_ids)
+        .bind(&graph_artifact_ids)
+        .execute(&mut **tx)
+        .await
+        .pg_write("detach retained graph episodes from deleted notes")?;
+
+        query(
+            "DELETE FROM graph_edges \
+             WHERE from_entity_id = ANY($1) OR to_entity_id = ANY($1) \
+                OR event_id = ANY($2)",
+        )
+        .bind(&graph_artifact_ids)
+        .bind(&event_ids)
+        .execute(&mut **tx)
+        .await
+        .pg_write("hard-delete graph edges")?;
+
+        query(
+            "DELETE FROM graph_entity_aliases \
+             WHERE canonical_graph_entity_id = ANY($1)",
+        )
+        .bind(&graph_artifact_ids)
+        .execute(&mut **tx)
+        .await
+        .pg_write("hard-delete graph entity aliases")?;
+
+        query(
+            "DELETE FROM graph_entities \
+             WHERE graph_entity_id = ANY($1)",
+        )
+        .bind(&graph_artifact_ids)
+        .execute(&mut **tx)
+        .await
+        .pg_write("hard-delete graph entities")?;
+
+        for cache_hash in &cache_hashes {
+            query("DELETE FROM embedding_cache WHERE content_hash = $1")
+                .bind(cache_hash)
+                .execute(&mut **tx)
+                .await
+                .pg_write("hard-delete embedding cache entry")?;
+        }
+
+        let mut deleted_projection_rows = 0_u64;
+        for (target_entity_id, target_slot_key) in &targets {
+            query("DELETE FROM memory_events WHERE entity_id = $1 AND slot_key = $2")
+                .bind(target_entity_id)
+                .bind(target_slot_key)
+                .execute(&mut **tx)
+                .await
+                .pg_write("hard-delete memory events")?;
+
+            deleted_projection_rows +=
+                query("DELETE FROM belief_slots WHERE entity_id = $1 AND slot_key = $2")
+                    .bind(target_entity_id)
+                    .bind(target_slot_key)
+                    .execute(&mut **tx)
+                    .await
+                    .pg_write("hard-delete belief slot")?
+                    .rows_affected();
+
+            deleted_projection_rows +=
+                query("DELETE FROM retrieval_units WHERE entity_id = $1 AND slot_key = $2")
+                    .bind(target_entity_id)
+                    .bind(target_slot_key)
+                    .execute(&mut **tx)
+                    .await
+                    .pg_write("hard-delete retrieval units")?
+                    .rows_affected();
+
+            query(
+                "DELETE FROM memory_derivations \
+                 WHERE (derived_entity_id = $1 AND derived_slot_key = $2) \
+                    OR (source_entity_id = $1 AND source_slot_key = $2)",
+            )
+            .bind(target_entity_id)
+            .bind(target_slot_key)
             .execute(&mut **tx)
             .await
-            .pg_write("delete belief slot")?;
+            .pg_write("hard-delete memory lineage")?;
+        }
+        super::integrity::rebuild_memory_event_chain(tx).await?;
 
-        query("DELETE FROM retrieval_units WHERE unit_id = $1")
-            .bind(unit_id)
-            .execute(&mut **tx)
-            .await
-            .pg_write("hard-delete retrieval unit")?;
+        let projection_ids = graph_artifact_ids;
+        let mut owner_ids = targets
+            .iter()
+            .map(|(target_entity_id, _)| target_entity_id.clone())
+            .collect::<Vec<_>>();
+        owner_ids.sort();
+        owner_ids.dedup();
 
-        Ok(result.rows_affected() > 0)
+        Ok(ForgetApplication {
+            applied: deleted_projection_rows > 0 || !event_ids.is_empty(),
+            cache_hashes,
+            projection_ids,
+            owner_ids,
+        })
     }
 
     async fn apply_tombstone(
@@ -360,10 +572,15 @@ impl PostgresMemory {
         tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
         ctx: &ForgetContext<'_>,
         mode: ForgetMode,
+        cache_hashes: &[String],
+        projection_ids: &[String],
     ) -> PostgresMemoryResult<Vec<ForgetArtifactCheck>> {
         let slot_observed = Self::observe_slot_artifact(tx, ctx.entity_id, ctx.slot_key).await;
         let retrieval_observed = Self::observe_retrieval_artifact(tx, &ctx.unit_id).await;
-        let cache_observed = ForgetObservation::Absent;
+        let documents_observed =
+            Self::observe_document_artifacts(tx, ctx.entity_id, ctx.slot_key, projection_ids)
+                .await?;
+        let cache_observed = Self::observe_cache_artifacts(tx, cache_hashes).await?;
         let ledger_observed = Self::observe_ledger_artifact(
             tx,
             ctx.entity_id,
@@ -384,6 +601,11 @@ impl PostgresMemory {
                 ForgetArtifact::RetrievalUnits,
                 mode.artifact_requirement(ForgetArtifact::RetrievalUnits),
                 retrieval_observed,
+            ),
+            ForgetArtifactCheck::new(
+                ForgetArtifact::RetrievalDocs,
+                mode.artifact_requirement(ForgetArtifact::RetrievalDocs),
+                documents_observed,
             ),
             ForgetArtifactCheck::new(
                 ForgetArtifact::Caches,
@@ -438,6 +660,64 @@ impl PostgresMemory {
             Some("secret") => ForgetObservation::PresentNonRetrievable,
             Some(_) => ForgetObservation::PresentRetrievable,
         }
+    }
+
+    async fn observe_document_artifacts(
+        tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+        entity_id: &str,
+        slot_key: &str,
+        projection_ids: &[String],
+    ) -> PostgresMemoryResult<ForgetObservation> {
+        let slot_graph_id = format!("slot::{entity_id}::{slot_key}");
+        let exists: bool = query(
+            "SELECT EXISTS( \
+                SELECT 1 FROM memory_events WHERE entity_id = $1 AND slot_key = $2 \
+                UNION ALL \
+                SELECT 1 FROM graph_entities WHERE graph_entity_id = $3 \
+                    OR graph_entity_id = ANY($4) \
+                    OR graph_entity_id IN ( \
+                        SELECT 'event::' || event_id FROM memory_events \
+                        WHERE entity_id = $1 AND slot_key = $2 \
+                    ) \
+             )",
+        )
+        .bind(entity_id)
+        .bind(slot_key)
+        .bind(&slot_graph_id)
+        .bind(projection_ids)
+        .fetch_one(&mut **tx)
+        .await
+        .map(|row| row.get::<bool, _>(0))
+        .pg_query("observe forget document artifacts")?;
+
+        Ok(if exists {
+            ForgetObservation::PresentNonRetrievable
+        } else {
+            ForgetObservation::Absent
+        })
+    }
+
+    async fn observe_cache_artifacts(
+        tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+        cache_hashes: &[String],
+    ) -> PostgresMemoryResult<ForgetObservation> {
+        if cache_hashes.is_empty() {
+            return Ok(ForgetObservation::Absent);
+        }
+
+        let exists: bool =
+            query("SELECT EXISTS(SELECT 1 FROM embedding_cache WHERE content_hash = ANY($1))")
+                .bind(cache_hashes)
+                .fetch_one(&mut **tx)
+                .await
+                .map(|row| row.get::<bool, _>(0))
+                .pg_query("observe forget cache artifacts")?;
+
+        Ok(if exists {
+            ForgetObservation::PresentRetrievable
+        } else {
+            ForgetObservation::Absent
+        })
     }
 
     async fn observe_ledger_artifact(
