@@ -111,7 +111,19 @@ pub fn build_companion_grounding_augmentation(
     items: &[MemoryRecallEntry],
     min_confidence: f64,
 ) -> CompanionGroundingAugmentation {
-    let prepared = prepare_recall_items_for_grounding(items, min_confidence);
+    build_companion_grounding_augmentation_with_privacy(query, items, min_confidence, true)
+}
+
+/// Build companion grounding while enforcing whether private recall may enter
+/// the model prompt. Secret recall is always suppressed.
+#[must_use]
+pub fn build_companion_grounding_augmentation_with_privacy(
+    query: &str,
+    items: &[MemoryRecallEntry],
+    min_confidence: f64,
+    allow_private: bool,
+) -> CompanionGroundingAugmentation {
+    let prepared = prepare_recall_items_for_grounding(items, min_confidence, allow_private);
     record_grounding_exposure(prepared.exposure);
     tracing::debug!(
         public_visible = prepared.exposure.public_visible,
@@ -291,6 +303,7 @@ struct PreparedGroundingItems {
 fn prepare_recall_items_for_grounding(
     items: &[MemoryRecallEntry],
     min_confidence: f64,
+    allow_private: bool,
 ) -> PreparedGroundingItems {
     let mut prepared = PreparedGroundingItems::default();
     for item in items {
@@ -299,7 +312,12 @@ fn prepare_recall_items_for_grounding(
         }
         match &item.privacy_level {
             PrivacyLevel::Public => prepared.exposure.public_visible += 1,
-            PrivacyLevel::Private => prepared.exposure.private_internal += 1,
+            PrivacyLevel::Private => {
+                prepared.exposure.private_internal += 1;
+                if !allow_private {
+                    continue;
+                }
+            }
             PrivacyLevel::Secret => {
                 prepared.exposure.secret_suppressed += 1;
                 continue;
@@ -450,7 +468,8 @@ fn xml_escape_into(out: &mut String, s: &str) {
 mod tests {
     use super::{
         build_companion_grounding_augmentation, build_companion_grounding_augmentation_block,
-        grounding_exposure_monitor_snapshot, render_grounding_contract,
+        build_companion_grounding_augmentation_with_privacy, grounding_exposure_monitor_snapshot,
+        render_grounding_contract,
     };
     use crate::contracts::ids::EntityId;
     use crate::core::memory::MemorySource;
@@ -790,6 +809,48 @@ mod tests {
         assert!(rendered.contains(">prefers quiet replies</item>"));
         assert!(!rendered.contains("do-not-render-secret"));
         assert!(!rendered.contains("profile.secret_token"));
+    }
+
+    #[test]
+    fn public_grounding_suppresses_private_values_before_rendering() {
+        use crate::contracts::ids::SlotKey;
+        use crate::core::memory::{MemoryRecallEntry, PrivacyLevel};
+
+        let recall_items = vec![
+            MemoryRecallEntry {
+                entity_id: EntityId::new("user-1"),
+                slot_key: SlotKey::new("profile.public_name"),
+                value: "Haru".to_string(),
+                source: MemorySource::ExplicitUser,
+                confidence: 0.95.into(),
+                importance: 0.8.into(),
+                privacy_level: PrivacyLevel::Public,
+                score: 0.9,
+                occurred_at: "2026-04-01T00:00:00Z".to_string(),
+            },
+            MemoryRecallEntry {
+                entity_id: EntityId::new("user-1"),
+                slot_key: SlotKey::new("health.private_condition"),
+                value: "PRIVATE_CONDITION_ALPHA".to_string(),
+                source: MemorySource::ExplicitUser,
+                confidence: 0.9.into(),
+                importance: 0.9.into(),
+                privacy_level: PrivacyLevel::Private,
+                score: 0.9,
+                occurred_at: "2026-04-01T00:00:00Z".to_string(),
+            },
+        ];
+
+        let augmentation = build_companion_grounding_augmentation_with_privacy(
+            "health question",
+            &recall_items,
+            0.3,
+            false,
+        );
+
+        assert!(augmentation.block.contains("Haru"));
+        assert!(!augmentation.block.contains("PRIVATE_CONDITION_ALPHA"));
+        assert_eq!(augmentation.exposure.private_internal, 1);
     }
 
     #[test]

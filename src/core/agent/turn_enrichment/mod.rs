@@ -34,7 +34,7 @@ use crate::core::agent::response_style::{
     render_judgment_core_turn_block, render_response_style_block,
 };
 use crate::core::agent::turn_contract::CompanionTurnContract;
-use crate::core::memory::influence::build_companion_grounding_augmentation;
+use crate::core::memory::influence::build_companion_grounding_augmentation_with_privacy;
 use crate::core::memory::{
     Memory, MemoryEventInput, MemoryEventType, MemoryRecallEntry, MemorySource, PrivacyLevel,
     RecallQuery, WorkingMemoryView,

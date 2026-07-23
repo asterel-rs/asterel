@@ -25,6 +25,7 @@ use super::media::media_processor_for_runtime;
 use super::prompt::load_channel_thinking_state;
 use super::reply::{handle_tool_loop_success, reply_to_origin, send_tool_loop_error_reply};
 use super::{ChannelToolLoopInput, ToolLoopExecutionArtifacts, ToolLoopStreamState};
+use crate::contracts::channels::SurfaceRealizationPolicy;
 use crate::contracts::ids::PersonId;
 use crate::core::agent::LoopStopReason;
 use crate::core::persona::person_identity::{channel_entity_id, sanitize_person_id};
@@ -481,6 +482,25 @@ fn resolve_channel_inference_target<'a>(
     }
 }
 
+fn surface_policy_for_channel_turn(
+    base_policy: Option<&SurfaceRealizationPolicy>,
+    channel_name: &str,
+    channel_context_hint: Option<&str>,
+) -> SurfaceRealizationPolicy {
+    if channel_name == "discord"
+        && channel_context_hint.is_some_and(|hint| {
+            let normalized = hint.to_ascii_lowercase();
+            hint.contains("Channel Context: DM") || normalized.trim() == "dm"
+        })
+    {
+        return SurfaceRealizationPolicy::discord_dm();
+    }
+
+    base_policy
+        .cloned()
+        .unwrap_or_else(SurfaceRealizationPolicy::public_channel_default)
+}
+
 /// Runs the full tool loop for a channel message, including media
 /// processing, streaming setup, and inference.
 #[allow(clippy::too_many_lines)]
@@ -564,6 +584,11 @@ pub(super) async fn execute_channel_tool_loop(
     let entity_id =
         policy_context.scope_entity_id(&channel_entity_id(input.channel_name, input.thinking_key));
     let person_id = channel_turn_person_id(input.channel_name, input.sender);
+    let surface_realization_policy = surface_policy_for_channel_turn(
+        rt.channel_surface_policies_by_name.get(input.channel_name),
+        input.channel_name,
+        input.channel_context_hint,
+    );
     let result = run_transport_companion_turn(CompanionTransportTurnRequest {
         runtime: CompanionTurnRuntimeDeps {
             mem: Arc::clone(&rt.mem),
@@ -588,7 +613,7 @@ pub(super) async fn execute_channel_tool_loop(
         policy_context: &policy_context,
         session_surface: Some(input.channel_name),
         channel_context_hint: input.channel_context_hint,
-        surface_realization_policy: rt.channel_surface_policies_by_name.get(input.channel_name),
+        surface_realization_policy: Some(&surface_realization_policy),
         session_owner_scope: Some(session_binding.owner_scope.as_str()),
         working_memory_session_id: session_binding.working_memory_session_id(input.thinking_key),
         history_channel_name: input.channel_name,
@@ -619,6 +644,9 @@ pub(super) async fn execute_channel_tool_loop(
 
 #[cfg(test)]
 mod tests {
+    use crate::contracts::channels::SurfaceRealizationPolicy;
+
+    use super::surface_policy_for_channel_turn;
     use super::{
         build_channel_turn_base_prompt, channel_turn_person_id, tenant_scoped_owner_scope,
     };
@@ -632,6 +660,32 @@ mod tests {
             channel_turn_person_id("discord", "u/123").as_str(),
             "discord.u_123__h9f5e7e9a62f3"
         );
+    }
+
+    #[test]
+    fn discord_dm_uses_private_surface_policy_per_turn() {
+        let public = SurfaceRealizationPolicy::discord_public();
+        let resolved = surface_policy_for_channel_turn(
+            Some(&public),
+            "discord",
+            Some("[Channel Context: DM — conversational tone, natural length]"),
+        );
+
+        assert!(!resolved.is_public);
+        assert_eq!(resolved.target_length, 800);
+    }
+
+    #[test]
+    fn discord_public_turn_keeps_public_surface_policy() {
+        let public = SurfaceRealizationPolicy::discord_public();
+        let resolved = surface_policy_for_channel_turn(
+            Some(&public),
+            "discord",
+            Some("[Channel Context: Direct mention — concise, relevant to channel topic]"),
+        );
+
+        assert!(resolved.is_public);
+        assert_eq!(resolved.target_length, 400);
     }
 
     #[test]
