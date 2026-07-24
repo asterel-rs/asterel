@@ -117,7 +117,7 @@ rmcp = { version = "1.5.0", features = ["client", "transport-child-process", "tr
 # Intent classifier (ONNX inference)
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
 tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
-quick-xml = { version = "0.39.2", default-features = false }
+quick-xml = { version = "0.41.0", default-features = false }
 regex = "1.12.3"
 cliclack = "0.5"
 

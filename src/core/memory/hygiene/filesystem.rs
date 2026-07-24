@@ -229,8 +229,7 @@ fn date_prefix(filename: &str) -> Option<NaiveDate> {
 fn is_older_than(path: &Path, cutoff: SystemTime) -> bool {
     fs::metadata(path)
         .and_then(|meta| meta.modified())
-        .map(|modified| modified < cutoff)
-        .unwrap_or(false)
+        .is_ok_and(|modified| modified < cutoff)
 }
 
 fn move_to_archive(src: &Path, archive_dir: &Path) -> Result<()> {

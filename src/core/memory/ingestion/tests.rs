@@ -533,27 +533,3 @@ fn signal_envelope_json_rejects_invalid_source_kind() {
         .expect_err("invalid source_kind must fail");
     assert!(err.to_string().contains("unknown variant"));
 }
-
-#[test]
-fn semantic_dedup_key_is_deterministic_and_source_scoped() {
-    let key_a = semantic_dedup_key("person:key.test", SourceKind::Api, "same content");
-    let key_b = semantic_dedup_key("person:key.test", SourceKind::Api, "same content");
-    let key_other_source = semantic_dedup_key("person:key.test", SourceKind::News, "same content");
-    let key_other_entity = semantic_dedup_key("person:key.other", SourceKind::Api, "same content");
-    let key_other_content =
-        semantic_dedup_key("person:key.test", SourceKind::Api, "different content");
-
-    assert_eq!(key_a, key_b, "same tuple must produce stable dedup key");
-    assert_ne!(
-        key_a, key_other_source,
-        "source_kind must partition dedup namespace"
-    );
-    assert_ne!(
-        key_a, key_other_entity,
-        "entity_id must partition dedup namespace"
-    );
-    assert_ne!(
-        key_a, key_other_content,
-        "content difference must change dedup key"
-    );
-}

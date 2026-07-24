@@ -236,7 +236,6 @@ fn default_snapshot() -> PersonaSnapshot {
     }
 }
 
-
 fn source_hash(soul_raw: &str, character_raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(soul_raw.as_bytes());
@@ -313,7 +312,6 @@ struct OperatorOverlay {
 }
 
 impl OperatorOverlay {
-
     fn from_character_raw(character_raw: &str) -> Self {
         let voice = extract_named_section(character_raw, "Voice");
         let avoids = extract_named_section(character_raw, "Avoids");
@@ -355,7 +353,6 @@ impl OperatorOverlay {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
