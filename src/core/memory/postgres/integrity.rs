@@ -20,6 +20,30 @@ const DELETION_LEDGER_GENESIS_SEED: &str = "asterel-integrity:deletion_ledger:ge
 pub(super) const MEMORY_EVENTS_CHAIN_LOCK: i64 = 0x4173_7465_726F_6E01; // "Asteron" + 01
 pub(super) const DELETION_LEDGER_CHAIN_LOCK: i64 = 0x4173_7465_726F_6E02; // "Asteron" + 02
 
+pub(crate) async fn canonical_db_timestamp(
+    tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+) -> PostgresMemoryResult<String> {
+    query(
+        "SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC', \
+            'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS timestamp",
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map(|row| row.get::<String, _>("timestamp"))
+    .pg_integrity("fetch canonical database timestamp")
+}
+
+pub(crate) async fn lock_memory_event_chain(
+    tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+) -> PostgresMemoryResult<()> {
+    query("SELECT pg_advisory_xact_lock($1)")
+        .bind(MEMORY_EVENTS_CHAIN_LOCK)
+        .execute(&mut **tx)
+        .await
+        .pg_integrity("acquire memory_events chain advisory lock")?;
+    Ok(())
+}
+
 fn genesis_hash(seed: &str) -> String {
     let hash = Sha256::digest(seed.as_bytes());
     hex::encode(hash)
@@ -163,11 +187,7 @@ pub(crate) async fn next_memory_event_chain(
 ) -> PostgresMemoryResult<(String, String)> {
     // Acquire transaction-scoped advisory lock to serialize chain writes.
     // This prevents concurrent transactions from reading the same prev_hash.
-    query("SELECT pg_advisory_xact_lock($1)")
-        .bind(MEMORY_EVENTS_CHAIN_LOCK)
-        .execute(&mut **tx)
-        .await
-        .pg_integrity("acquire memory_events chain advisory lock")?;
+    lock_memory_event_chain(tx).await?;
 
     let prev_hash: String =
         query("SELECT integrity_hash FROM memory_events ORDER BY seq_id DESC LIMIT 1")
@@ -182,6 +202,49 @@ pub(crate) async fn next_memory_event_chain(
     let hash = compute_memory_event_hash(&prev_hash, fields);
 
     Ok((prev_hash, hash))
+}
+
+/// Rebuild the event chain after an authorized physical deletion.
+pub(super) async fn rebuild_memory_event_chain(
+    tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+) -> PostgresMemoryResult<()> {
+    lock_memory_event_chain(tx).await?;
+
+    // ceiling: this materializes the retained event log; switch to batched cursor processing
+    // if retention policy permits event counts large enough to create memory pressure.
+    let rows = query(
+        "SELECT seq_id, event_id, entity_id, slot_key, layer, event_type, value, source, \
+                confidence, importance, \
+                provenance_source_class, provenance_reference, provenance_evidence_uri, \
+                retention_tier, \
+                to_char(retention_expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS retention_expires_at_str, \
+                signal_tier, source_kind, privacy_level, \
+                to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS occurred_at_str, \
+                to_char(ingested_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ingested_at_str, \
+                supersedes_event_id \
+         FROM memory_events ORDER BY seq_id ASC",
+    )
+    .fetch_all(&mut **tx)
+    .await
+    .pg_integrity("fetch memory_events for integrity rebuild")?;
+
+    let mut prev_hash = genesis_hash(MEMORY_EVENTS_GENESIS_SEED);
+    for row in rows {
+        let integrity_hash = compute_memory_event_row_hash(&row, &prev_hash);
+        query(
+            "UPDATE memory_events SET integrity_prev_hash = $2, integrity_hash = $3 \
+             WHERE seq_id = $1",
+        )
+        .bind(row.get::<i64, _>("seq_id"))
+        .bind(&prev_hash)
+        .bind(&integrity_hash)
+        .execute(&mut **tx)
+        .await
+        .pg_integrity("update rebuilt memory_events integrity hash")?;
+        prev_hash = integrity_hash;
+    }
+
+    Ok(())
 }
 
 /// Compute the next hash in the `deletion_ledger` chain.
@@ -209,6 +272,56 @@ pub(super) async fn next_deletion_ledger_chain(
     let hash = compute_deletion_ledger_hash(&prev_hash, fields);
 
     Ok((prev_hash, hash))
+}
+
+pub(super) async fn rebuild_deletion_ledger_chain(
+    tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+) -> PostgresMemoryResult<()> {
+    query("SELECT pg_advisory_xact_lock($1)")
+        .bind(DELETION_LEDGER_CHAIN_LOCK)
+        .execute(&mut **tx)
+        .await
+        .pg_integrity("acquire deletion_ledger chain advisory lock for rebuild")?;
+
+    let rows = query(
+        "SELECT seq_id, ledger_id, entity_id, target_slot_key, phase, reason, requested_by, \
+                to_char(executed_at AT TIME ZONE 'UTC', \
+                    'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS executed_at_str \
+         FROM deletion_ledger ORDER BY seq_id ASC",
+    )
+    .fetch_all(&mut **tx)
+    .await
+    .pg_integrity("fetch deletion_ledger for integrity rebuild")?;
+
+    let mut prev_hash = genesis_hash(DELETION_LEDGER_GENESIS_SEED);
+    for row in rows {
+        let ledger_id = row.get::<String, _>("ledger_id");
+        let integrity_hash = compute_deletion_ledger_hash(
+            &prev_hash,
+            &DeletionLedgerHashFields {
+                ledger_id: &ledger_id,
+                entity_id: &row.get::<String, _>("entity_id"),
+                target_slot_key: &row.get::<String, _>("target_slot_key"),
+                phase: &row.get::<String, _>("phase"),
+                reason: &row.get::<String, _>("reason"),
+                requested_by: &row.get::<String, _>("requested_by"),
+                executed_at: &row.get::<String, _>("executed_at_str"),
+            },
+        );
+        query(
+            "UPDATE deletion_ledger SET integrity_prev_hash = $2, integrity_hash = $3 \
+             WHERE seq_id = $1",
+        )
+        .bind(row.get::<i64, _>("seq_id"))
+        .bind(&prev_hash)
+        .bind(&integrity_hash)
+        .execute(&mut **tx)
+        .await
+        .pg_integrity("update rebuilt deletion_ledger integrity hash")?;
+        prev_hash = integrity_hash;
+    }
+
+    Ok(())
 }
 
 use super::PostgresMemory;
@@ -270,10 +383,10 @@ impl PostgresMemory {
                     confidence, importance, \
                     provenance_source_class, provenance_reference, provenance_evidence_uri, \
                     retention_tier, \
-                    to_char(retention_expires_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS retention_expires_at_str, \
+                    to_char(retention_expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS retention_expires_at_str, \
                     signal_tier, source_kind, privacy_level, \
-                    to_char(occurred_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS occurred_at_str, \
-                    to_char(ingested_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ingested_at_str, \
+                    to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS occurred_at_str, \
+                    to_char(ingested_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ingested_at_str, \
                     supersedes_event_id, \
                     integrity_prev_hash, integrity_hash \
              FROM memory_events ORDER BY seq_id ASC \
@@ -300,7 +413,7 @@ impl PostgresMemory {
         let rows = query(
             "SELECT seq_id, ledger_id, entity_id, target_slot_key, phase, reason, \
                     requested_by, \
-                    to_char(executed_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS executed_at_str, \
+                    to_char(executed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS executed_at_str, \
                     integrity_prev_hash, integrity_hash \
              FROM deletion_ledger ORDER BY seq_id ASC \
              LIMIT 100000",
@@ -340,6 +453,21 @@ fn verify_memory_event_row(
         });
     }
 
+    let computed = compute_memory_event_row_hash(row, &stored_prev);
+
+    if computed != stored_hash {
+        issues.push(MemoryIntegrityIssue {
+            chain: "memory_events".to_string(),
+            row_key: event_id,
+            reason: format!("hash mismatch: computed={computed}, stored={stored_hash}"),
+        });
+    }
+
+    stored_hash
+}
+
+fn compute_memory_event_row_hash(row: &PgRow, prev_hash: &str) -> String {
+    let event_id = row.get::<String, _>("event_id");
     let entity_id = row.get::<String, _>("entity_id");
     let slot_key = row.get::<String, _>("slot_key");
     let layer = row.get::<String, _>("layer");
@@ -358,8 +486,8 @@ fn verify_memory_event_row(
     let source_kind = row.try_get::<String, _>("source_kind").ok();
     let supersedes_event_id = row.try_get::<String, _>("supersedes_event_id").ok();
 
-    let computed = compute_memory_event_hash(
-        &stored_prev,
+    compute_memory_event_hash(
+        prev_hash,
         &MemoryEventHashFields {
             event_id: &event_id,
             entity_id: &entity_id,
@@ -382,17 +510,7 @@ fn verify_memory_event_row(
             ingested_at: &ingested_at,
             supersedes_event_id: supersedes_event_id.as_deref(),
         },
-    );
-
-    if computed != stored_hash {
-        issues.push(MemoryIntegrityIssue {
-            chain: "memory_events".to_string(),
-            row_key: event_id,
-            reason: format!("hash mismatch: computed={computed}, stored={stored_hash}"),
-        });
-    }
-
-    stored_hash
+    )
 }
 
 fn verify_deletion_ledger_row(

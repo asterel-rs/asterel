@@ -21,7 +21,7 @@ pub(crate) async fn handle_agents_list(
     // Primary agent from runtime config
     agents.push(serde_json::json!({
         "id": "primary",
-        "name": "Asterel",
+        "name": "agent",
         "model": state.runtime.model,
         "is_default": true,
         "status": "active",

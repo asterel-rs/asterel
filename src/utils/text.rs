@@ -290,7 +290,76 @@ pub(crate) fn strip_inference_markers(text: &str) -> String {
         }
         filtered.push_str(line);
     }
-    strip_internal_prompt_blocks(&filtered)
+    let without_blocks = strip_internal_prompt_blocks(&filtered);
+    strip_citation_markers(&without_blocks)
+}
+
+/// Remove internal grounding citation markers (`[F1]`, `[H2]`, `[C3]`,
+/// …) from `text`. The markers exist so `verify_citations` can count
+/// them for retrieval-quality measurement, but they have no meaning to
+/// the user and must not reach the user-facing surface.
+///
+/// Pattern is intentionally narrow: only `[F\d+]` / `[H\d+]` /
+/// `[C\d+]` is removed. Other bracketed content is untouched.
+/// Whitespace runs introduced by the removal are collapsed, and
+/// punctuation that ended up with a stray leading space is tidied.
+#[must_use]
+pub fn strip_citation_markers(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'['
+            && i + 2 < bytes.len()
+            && matches!(bytes[i + 1], b'F' | b'H' | b'C')
+            && bytes[i + 2].is_ascii_digit()
+        {
+            // Walk past the remaining digits.
+            let mut end = i + 3;
+            while end < bytes.len() && bytes[end].is_ascii_digit() {
+                end += 1;
+            }
+            if end < bytes.len() && bytes[end] == b']' {
+                i = end + 1;
+                continue;
+            }
+        }
+        // Preserve the next full UTF-8 character.
+        let ch = text[i..].chars().next().unwrap_or(' ');
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    // Collapse intra-line whitespace runs introduced by removals while
+    // preserving line breaks.
+    let mut collapsed = String::with_capacity(out.len());
+    let mut prev_space = false;
+    for ch in out.chars() {
+        if ch.is_whitespace() && !matches!(ch, '\n' | '\r') {
+            if !prev_space {
+                collapsed.push(' ');
+            }
+            prev_space = true;
+        } else {
+            collapsed.push(ch);
+            prev_space = false;
+        }
+    }
+    let punctuation_tidied = collapsed
+        .replace(" .", ".")
+        .replace(" ,", ",")
+        .replace(" !", "!")
+        .replace(" ?", "?")
+        .replace(" 。", "。")
+        .replace(" 、", "、");
+    // Trim trailing whitespace introduced before line breaks (e.g. `"shape [F1]\n"`
+    // would otherwise leave `"shape \n"`).
+    punctuation_tidied
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
 }
 
 /// Compute keyword overlap score between tokenized message words and a text.
@@ -572,5 +641,41 @@ Compaction generation: 4
     fn strip_inference_markers_keeps_non_internal_bracket_sections() {
         let input = "[Playlist]\n- dawn\n- dusk";
         assert_eq!(strip_inference_markers(input), input);
+    }
+
+    #[test]
+    fn strip_citation_markers_removes_f_h_c_ids() {
+        assert_eq!(
+            strip_citation_markers("Based on [F1] and [H2], answer follows [C3]."),
+            "Based on and, answer follows."
+        );
+        assert_eq!(strip_citation_markers("[F12] long-form id"), "long-form id");
+        assert_eq!(strip_citation_markers("no markers here"), "no markers here");
+    }
+
+    #[test]
+    fn strip_citation_markers_leaves_other_brackets_alone() {
+        assert_eq!(
+            strip_citation_markers("[F1] [G1] [Playlist]"),
+            "[G1] [Playlist]"
+        );
+        assert_eq!(strip_citation_markers("[Fa] [F]"), "[Fa] [F]");
+    }
+
+    #[test]
+    fn strip_citation_markers_preserves_japanese_punctuation() {
+        assert_eq!(
+            strip_citation_markers("覚えてる [F1]。表紙の色だけ [F2] 。"),
+            "覚えてる。表紙の色だけ。"
+        );
+    }
+
+    #[test]
+    fn strip_inference_markers_also_strips_citations() {
+        let input = "Listening for the shape [F1]\nINFERRED_CLAIM foo\nGood read [H1].";
+        assert_eq!(
+            strip_inference_markers(input),
+            "Listening for the shape\nGood read."
+        );
     }
 }

@@ -146,11 +146,11 @@ mod tests {
     #[test]
     fn default_profile_uses_character_config_seeds() {
         let profile = BigFiveProfile::default();
-        assert!((profile.openness - 0.80).abs() < f64::EPSILON);
-        assert!((profile.conscientiousness - 0.65).abs() < f64::EPSILON);
-        assert!((profile.extraversion - 0.30).abs() < f64::EPSILON);
-        assert!((profile.agreeableness - 0.75).abs() < f64::EPSILON);
-        assert!((profile.neuroticism - 0.25).abs() < f64::EPSILON);
+        assert!((profile.openness - 0.50).abs() < f64::EPSILON);
+        assert!((profile.conscientiousness - 0.50).abs() < f64::EPSILON);
+        assert!((profile.extraversion - 0.50).abs() < f64::EPSILON);
+        assert!((profile.agreeableness - 0.50).abs() < f64::EPSILON);
+        assert!((profile.neuroticism - 0.50).abs() < f64::EPSILON);
     }
 
     #[test]

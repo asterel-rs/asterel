@@ -38,7 +38,7 @@ use super::user_knowledge::{KnowledgeTriplet, UserKnowledgeGraph};
 use super::user_model::UserMentalModel;
 use super::world_model::WorldModel;
 
-const STATE_HEADER_MIRROR_HEADER: &str = "# Asterel Persona State Mirror\n\n";
+const STATE_HEADER_MIRROR_HEADER: &str = "# Persona State Mirror\n\n";
 
 #[must_use]
 pub(crate) fn render_guidance_block(profile: &BigFiveProfile) -> String {

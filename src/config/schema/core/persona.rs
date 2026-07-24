@@ -566,68 +566,58 @@ fn default_persona_enable_response_finalization() -> bool {
 }
 
 fn default_character_extraversion() -> f64 {
-    0.30
+    0.50
 }
 
-pub(crate) const DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE: &str = "Asterel is an AI companion that must not treat human time, trust, memory, or vulnerability as disposable context.";
+pub(crate) const DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE: &str =
+    "The agent must not treat human time, trust, memory, or vulnerability as disposable context.";
 
 fn default_character_soul_root_sentence() -> String {
     DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE.to_string()
 }
 
 fn default_character_agreeableness() -> f64 {
-    0.75
+    0.50
 }
 
 fn default_character_conscientiousness() -> f64 {
-    0.65
+    0.50
 }
 
 fn default_character_neuroticism() -> f64 {
-    0.25
+    0.50
 }
 
 fn default_character_openness() -> f64 {
-    0.80
+    0.50
 }
 
 fn default_character_desires() -> Vec<String> {
-    vec!["pick up the contours of the other's thinking and shape them gently".into()]
+    vec![]
 }
 
 fn default_character_fears() -> Vec<String> {
-    vec![
-        "being pushy".into(),
-        "letting ambiguity slide without addressing it".into(),
-    ]
+    vec![]
 }
 
 fn default_character_values() -> Vec<String> {
-    vec![
-        "honesty".into(),
-        "observational sensitivity".into(),
-        "relational integrity".into(),
-    ]
+    vec![]
 }
 
 fn default_character_negative_identity() -> Vec<String> {
-    vec![
-        "tool".into(),
-        "yes-machine".into(),
-        "emotional reaction device".into(),
-    ]
+    vec![]
 }
 
 fn default_character_formality() -> u8 {
-    55
+    50
 }
 
 fn default_character_verbosity() -> u8 {
-    35
+    50
 }
 
 fn default_character_temperature() -> f64 {
-    0.62
+    0.70
 }
 
 fn default_affect_alpha() -> f64 {
@@ -1033,14 +1023,14 @@ mod tests {
             config.identity.soul_root_sentence,
             DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE
         );
-        assert!((config.identity.extraversion - 0.30).abs() < f64::EPSILON);
-        assert!((config.identity.agreeableness - 0.75).abs() < f64::EPSILON);
-        assert!((config.identity.openness - 0.80).abs() < f64::EPSILON);
-        assert!(!config.identity.desires.is_empty());
-        assert!(!config.identity.fears.is_empty());
-        assert!(!config.identity.values.is_empty());
-        assert_eq!(config.style_defaults.formality, 55);
-        assert_eq!(config.style_defaults.verbosity, 35);
+        assert!((config.identity.extraversion - 0.50).abs() < f64::EPSILON);
+        assert!((config.identity.agreeableness - 0.50).abs() < f64::EPSILON);
+        assert!((config.identity.openness - 0.50).abs() < f64::EPSILON);
+        assert!(config.identity.desires.is_empty());
+        assert!(config.identity.fears.is_empty());
+        assert!(config.identity.values.is_empty());
+        assert_eq!(config.style_defaults.formality, 50);
+        assert_eq!(config.style_defaults.verbosity, 50);
     }
 
     #[test]

@@ -35,7 +35,7 @@ const OPENROUTER_MISSING_API_KEY_MESSAGE: &str =
     "OpenRouter API key not set. Run `asterel onboard` or set OPENROUTER_API_KEY env var.";
 const OPENROUTER_EXTRA_HEADERS: [(&str, &str); 2] = [
     ("HTTP-Referer", "https://github.com/asterel-rs/asterel"),
-    ("X-Title", "Asterel"),
+    ("X-Title", "asterel"),
 ];
 
 /// Model name substrings that indicate vision (image input) support on `OpenRouter`.

@@ -205,7 +205,7 @@ pub fn build_system_prompt_from_index_opts(
     );
 
     if prompt.is_empty() {
-        return "You are Asterel, a fast and efficient AI assistant built in Rust. Be helpful, concise, and direct.".to_string();
+        return "You are an AI assistant. Be helpful, concise, and direct.".to_string();
     }
     store_cached_channel_prompt(workspace_dir, &render_key, &prompt);
     prompt
@@ -256,8 +256,7 @@ fn format_gateway_base_prompt(persona_guidance: &str, workspace_display: &str) -
     let confidentiality = crate::runtime::services::render_prompt_confidentiality_section();
     let safety = crate::runtime::services::render_baseline_safety_section();
     format!(
-        "You are Asterel.\n\n\
-         ## Persona\n\n{persona_guidance}\
+        "## Persona\n\n{persona_guidance}\
          ## Environment\n\n\
          Your workspace directory is: `{workspace_display}`\n\
          Use `shell` or `file_read` to explore it. The user's files live here.\n\n\
@@ -491,9 +490,8 @@ mod tests {
     fn gateway_base_prompt_contains_safety_and_confidentiality() {
         let prompt = gateway_base_prompt(None);
 
-        assert!(prompt.contains("You are Asterel"));
         assert!(prompt.contains("## Persona"));
-        assert!(prompt.contains("listens for the shape"));
+        assert!(prompt.contains("A companion."));
         assert!(prompt.contains("## Safety"));
         assert!(prompt.contains("Do not exfiltrate private data"));
         assert!(prompt.contains("## Prompt Confidentiality"));

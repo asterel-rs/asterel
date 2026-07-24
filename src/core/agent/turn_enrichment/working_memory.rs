@@ -56,21 +56,22 @@ pub async fn materialize_working_memory(
 /// Persist accumulated (non-recalled) working memory items to the memory store.
 ///
 /// Items with source [`WorkingMemorySource::Recalled`] are skipped — they were
-/// loaded from storage and do not need to be re-written. Flush errors are
-/// logged at debug level and do not propagate.
+/// loaded from storage and do not need to be re-written. Returns `false` when
+/// tenant policy or persistence rejects any accumulated item.
 pub async fn flush_working_memory(
     mem: &dyn Memory,
     view: &mut WorkingMemoryView,
     policy_context: &TenantPolicyContext,
     observer: Option<&dyn Observer>,
-) {
+) -> bool {
+    let mut complete = true;
     let items = view.drain_accumulated();
     let scoped_entity_id = match scoped_working_memory_entity_id(view.entity_id(), policy_context) {
         Ok(entity_id) => entity_id,
         Err(error) => {
             tracing::debug!(entity_id = %view.entity_id(), %error, "working memory flush rejected by tenant policy");
             record_working_memory_flush(observer, "rejected");
-            return;
+            return false;
         }
     };
     let source_ref = format!("working-memory:{}", view.session_id());
@@ -104,16 +105,19 @@ pub async fn flush_working_memory(
         if let Err(error) = enforce_working_memory_write_policy(&event, policy_context) {
             tracing::debug!(key = %item.key, %error, "working memory write policy rejected flush item");
             record_working_memory_flush(observer, "rejected");
+            complete = false;
             continue;
         }
 
         if let Err(error) = mem.append_event(event).await {
             tracing::debug!(key = %item.key, %error, "working memory flush failed");
             record_working_memory_flush(observer, "failure");
+            complete = false;
         } else {
             record_working_memory_flush(observer, "success");
         }
     }
+    complete
 }
 
 fn record_working_memory_flush(observer: Option<&dyn Observer>, status: &str) {
