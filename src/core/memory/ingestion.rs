@@ -9,8 +9,6 @@ mod signal_envelope;
 use std::sync::Arc;
 
 pub use error::{IngestionError, IngestionPipelineResult};
-#[cfg(test)]
-use pipeline::semantic_dedup_key;
 pub use pipeline::{DefaultIngestPipeline, IngestionPipeline, IngestionResult};
 pub use signal_envelope::SignalEnvelope;
 
