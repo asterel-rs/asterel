@@ -12,8 +12,8 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use chacha20poly1305::aead::{Aead, KeyInit, OsRng};
-use chacha20poly1305::{AeadCore, ChaCha20Poly1305, Key, Nonce};
+use chacha20poly1305::aead::{Aead, Generate, KeyInit};
+use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use zeroize::Zeroizing;
 
 pub use crate::contracts::security::SecretStore;
@@ -52,10 +52,10 @@ impl SecretStore {
         }
 
         let key_bytes = self.load_or_create_key()?;
-        let key = Key::from_slice(&key_bytes);
-        let cipher = ChaCha20Poly1305::new(key);
+        let cipher = ChaCha20Poly1305::new_from_slice(&key_bytes)
+            .map_err(|_| anyhow::anyhow!("secret key must be 32 bytes"))?;
 
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let nonce = Nonce::try_generate().context("failed to generate encryption nonce")?;
         let ciphertext = cipher
             .encrypt(&nonce, plaintext)
             .map_err(|error| anyhow::anyhow!("encryption failed: {error}"))?;
@@ -106,14 +106,14 @@ impl SecretStore {
         );
 
         let (nonce_bytes, ciphertext) = blob.split_at(NONCE_LEN);
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let nonce = Nonce::try_from(nonce_bytes).context("encrypted nonce must be 12 bytes")?;
         let key_bytes = self.load_or_create_key()?;
-        let key = Key::from_slice(&key_bytes);
-        let cipher = ChaCha20Poly1305::new(key);
+        let cipher = ChaCha20Poly1305::new_from_slice(&key_bytes)
+            .map_err(|_| anyhow::anyhow!("secret key must be 32 bytes"))?;
 
         let plaintext_bytes = Zeroizing::new(
             cipher
-                .decrypt(nonce, ciphertext)
+                .decrypt(&nonce, ciphertext)
                 .map_err(|_| anyhow::anyhow!("decryption failed — wrong key or tampered data"))?,
         );
 
@@ -135,10 +135,10 @@ impl SecretStore {
 
         let salt = kdf::generate_salt();
         let key = kdf::derive_key_default(password.as_bytes(), &salt)?;
-        let key = Key::from_slice(&key);
-        let cipher = ChaCha20Poly1305::new(key);
+        let cipher = ChaCha20Poly1305::new_from_slice(&key)
+            .map_err(|_| anyhow::anyhow!("derived key must be 32 bytes"))?;
 
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let nonce = Nonce::try_generate().context("failed to generate encryption nonce")?;
         let ciphertext = cipher
             .encrypt(&nonce, plaintext)
             .map_err(|error| anyhow::anyhow!("password-based encryption failed: {error}"))?;
@@ -179,11 +179,11 @@ impl SecretStore {
         let (nonce_bytes, ciphertext) = rest.split_at(NONCE_LEN);
 
         let key = kdf::derive_key_default(password.as_bytes(), salt)?;
-        let key = Key::from_slice(&key);
-        let cipher = ChaCha20Poly1305::new(key);
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let cipher = ChaCha20Poly1305::new_from_slice(&key)
+            .map_err(|_| anyhow::anyhow!("derived key must be 32 bytes"))?;
+        let nonce = Nonce::try_from(nonce_bytes).context("encrypted nonce must be 12 bytes")?;
 
-        let plaintext_bytes = Zeroizing::new(cipher.decrypt(nonce, ciphertext).map_err(|_| {
+        let plaintext_bytes = Zeroizing::new(cipher.decrypt(&nonce, ciphertext).map_err(|_| {
             anyhow::anyhow!("password decryption failed -- wrong password or tampered data")
         })?);
 
@@ -291,7 +291,7 @@ impl SecretStore {
 /// Uses `OsRng` (via `getrandom`) directly, providing full 256-bit entropy
 /// without the fixed version/variant bits that UUID v4 introduces.
 fn generate_random_key() -> Zeroizing<Vec<u8>> {
-    Zeroizing::new(ChaCha20Poly1305::generate_key(&mut OsRng).to_vec())
+    Zeroizing::new(Key::generate().to_vec())
 }
 
 /// Hex-encode bytes to a lowercase hex string.

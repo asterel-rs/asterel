@@ -6,8 +6,8 @@
 
 use anyhow::{Context, Result};
 use argon2::Argon2;
-use chacha20poly1305::aead::OsRng;
-use chacha20poly1305::aead::rand_core::RngCore;
+use chacha20poly1305::Key;
+use chacha20poly1305::aead::Generate;
 use zeroize::Zeroizing;
 
 /// Derived key length in bytes (256-bit key for ChaCha20-Poly1305).
@@ -40,8 +40,9 @@ impl Default for KdfParams {
 /// Generate a random 16-byte salt using the OS CSPRNG.
 #[must_use]
 pub fn generate_salt() -> [u8; SALT_LEN] {
-    let mut salt = [0u8; SALT_LEN];
-    OsRng.fill_bytes(&mut salt);
+    let random = Key::generate();
+    let mut salt = [0_u8; SALT_LEN];
+    salt.copy_from_slice(&random[..SALT_LEN]);
     salt
 }
 
