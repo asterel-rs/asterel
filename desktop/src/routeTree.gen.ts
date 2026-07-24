@@ -9,36 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PairRouteImport } from './routes/pair'
-import { Route as MemoryRouteImport } from './routes/memory'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CompanionRouteImport } from './routes/companion'
-import { Route as ChannelsRouteImport } from './routes/channels'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
-import { Route as ExtensionsIndexRouteImport } from './routes/extensions/index'
+import { Route as ChannelsRouteImport } from './routes/channels'
+import { Route as CompanionRouteImport } from './routes/companion'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as PairRouteImport } from './routes/pair'
 import { Route as ChatIndexRouteImport } from './routes/chat/index'
+import { Route as ExtensionsIndexRouteImport } from './routes/extensions/index'
+import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 
-const PairRoute = PairRouteImport.update({
-  id: '/pair',
-  path: '/pair',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MemoryRoute = MemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompanionRoute = CompanionRouteImport.update({
-  id: '/companion',
-  path: '/companion',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChannelsRoute = ChannelsRouteImport.update({
@@ -46,24 +31,24 @@ const ChannelsRoute = ChannelsRouteImport.update({
   path: '/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CompanionRoute = CompanionRouteImport.update({
+  id: '/companion',
+  path: '/companion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SessionsIndexRoute = SessionsIndexRouteImport.update({
-  id: '/sessions/',
-  path: '/sessions/',
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExtensionsIndexRoute = ExtensionsIndexRouteImport.update({
-  id: '/extensions/',
-  path: '/extensions/',
+const PairRoute = PairRouteImport.update({
+  id: '/pair',
+  path: '/pair',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -71,9 +56,24 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExtensionsIndexRoute = ExtensionsIndexRouteImport.update({
+  id: '/extensions/',
+  path: '/extensions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsIndexRoute = SessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
   id: '/sessions/$sessionId',
   path: '/sessions/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -175,32 +175,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/pair': {
-      id: '/pair'
-      path: '/pair'
-      fullPath: '/pair'
-      preLoaderRoute: typeof PairRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/memory': {
-      id: '/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof MemoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/companion': {
-      id: '/companion'
-      path: '/companion'
-      fullPath: '/companion'
-      preLoaderRoute: typeof CompanionRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/channels': {
@@ -210,32 +189,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChannelsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/companion': {
+      id: '/companion'
+      path: '/companion'
+      fullPath: '/companion'
+      preLoaderRoute: typeof CompanionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/': {
-      id: '/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sessions/': {
-      id: '/sessions/'
-      path: '/sessions'
-      fullPath: '/sessions/'
-      preLoaderRoute: typeof SessionsIndexRouteImport
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/extensions/': {
-      id: '/extensions/'
-      path: '/extensions'
-      fullPath: '/extensions/'
-      preLoaderRoute: typeof ExtensionsIndexRouteImport
+    '/pair': {
+      id: '/pair'
+      path: '/pair'
+      fullPath: '/pair'
+      preLoaderRoute: typeof PairRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/': {
@@ -245,11 +224,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/extensions/': {
+      id: '/extensions/'
+      path: '/extensions'
+      fullPath: '/extensions/'
+      preLoaderRoute: typeof ExtensionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/': {
+      id: '/sessions/'
+      path: '/sessions'
+      fullPath: '/sessions/'
+      preLoaderRoute: typeof SessionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sessions/$sessionId': {
       id: '/sessions/$sessionId'
       path: '/sessions/$sessionId'
       fullPath: '/sessions/$sessionId'
       preLoaderRoute: typeof SessionsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
