@@ -15,7 +15,6 @@
 //!    conditionally promote the unit from `raw` → `candidate`.
 //! 9. Commit and invalidate the `GraphActivationCache` for the entity.
 
-use chrono::Local;
 use pgvector::HalfVector;
 use sqlx_core::query::query;
 use sqlx_core::row::Row;
@@ -54,7 +53,6 @@ impl PostgresMemory {
     ) -> PostgresMemoryResult<MemoryEvent> {
         let input = Self::normalize_input(input)?;
         let event_id = EventId::new(Uuid::new_v4().to_string());
-        let now = Local::now().to_rfc3339();
 
         let embedding = self
             .get_or_compute_embedding(EmbeddingRole::Document, &input.value)
@@ -65,6 +63,8 @@ impl PostgresMemory {
             .begin()
             .await
             .pg_write("begin append_event transaction")?;
+        super::integrity::lock_memory_event_chain(&mut tx).await?;
+        let now = super::integrity::canonical_db_timestamp(&mut tx).await?;
 
         let (should_replace, supersedes_event_id) =
             Self::decide_replacement(&mut tx, &input).await?;

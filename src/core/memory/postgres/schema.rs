@@ -5,7 +5,7 @@
 //! is safe to call on every startup — already-applied migrations are
 //! skipped without touching the database.
 //!
-//! ## Migration history (v1 – v20)
+//! ## Migration history (v1 – v21)
 //!
 //! | Version | Change                                               |
 //! |---------|------------------------------------------------------|
@@ -23,6 +23,7 @@
 //! | v14     | Episode/note hierarchy (`parent_graph_entity_id`)    |
 //! | v15     | Operator trust state table                           |
 //! | v20     | Drop planner/simulation legacy tables                |
+//! | v21     | Source lineage for derived memory                     |
 //!
 //! After all migrations, an HNSW index is created on
 //! `retrieval_units.embedding` if non-null rows exist (deferred index
@@ -56,6 +57,7 @@ const MIGRATION_V14_SQL: &str =
 const MIGRATION_V15_SQL: &str = include_str!("../../../../migrations/015_operator_trust_state.sql");
 const MIGRATION_V20_SQL: &str =
     include_str!("../../../../migrations/020_drop_legacy_planner_simulation_tables.sql");
+const MIGRATION_V21_SQL: &str = include_str!("../../../../migrations/021_memory_derivations.sql");
 
 /// Run schema migrations up to the latest version. Idempotent.
 ///
@@ -71,8 +73,7 @@ pub(super) async fn run_migrations(pool: &Pool<Postgres>) -> PostgresMemoryResul
     )
     .fetch_one(pool)
     .await
-    .map(|row| row.get::<bool, _>(0))
-    .unwrap_or(false);
+    .is_ok_and(|row| row.get::<bool, _>(0));
 
     let current_version = if has_schema {
         query(
@@ -81,8 +82,7 @@ pub(super) async fn run_migrations(pool: &Pool<Postgres>) -> PostgresMemoryResul
         )
         .fetch_one(pool)
         .await
-        .map(|row| row.get::<i32, _>(0))
-        .unwrap_or(0)
+        .map_or(0, |row| row.get::<i32, _>(0))
     } else {
         0
     };
@@ -149,6 +149,28 @@ pub(super) async fn run_migrations(pool: &Pool<Postgres>) -> PostgresMemoryResul
         .await?;
     }
 
+    if current_version < 21 {
+        let mut tx = pool.begin().await.map_err(PostgresMemoryError::migration)?;
+        query("SELECT pg_advisory_xact_lock($1)")
+            .bind(0x4173_7465_726F_6E21_i64)
+            .execute(&mut *tx)
+            .await
+            .map_err(PostgresMemoryError::migration)?;
+        for statement in MIGRATION_V21_SQL.split(';').map(str::trim) {
+            if statement.is_empty() {
+                continue;
+            }
+            query(statement).execute(&mut *tx).await.map_err(|error| {
+                PostgresMemoryError::migration(format!(
+                    "v21 memory derivation lineage migration failed: {error}"
+                ))
+            })?;
+        }
+        super::integrity::rebuild_memory_event_chain(&mut tx).await?;
+        super::integrity::rebuild_deletion_ledger_chain(&mut tx).await?;
+        tx.commit().await.map_err(PostgresMemoryError::migration)?;
+    }
+
     // Always attempt HNSW index creation (deferred for empty
     // tables, and needed after v2 drops the old index).
     create_hnsw_index_if_absent(pool).await?;
@@ -188,8 +210,7 @@ async fn create_hnsw_index_if_absent(pool: &Pool<Postgres>) -> PostgresMemoryRes
     )
     .fetch_one(pool)
     .await
-    .map(|row| row.get::<bool, _>(0))
-    .unwrap_or(false);
+    .is_ok_and(|row| row.get::<bool, _>(0));
 
     if !has_index {
         let has_embeddings: bool = query(
@@ -200,8 +221,7 @@ async fn create_hnsw_index_if_absent(pool: &Pool<Postgres>) -> PostgresMemoryRes
         )
         .fetch_one(pool)
         .await
-        .map(|row| row.get::<bool, _>(0))
-        .unwrap_or(false);
+        .is_ok_and(|row| row.get::<bool, _>(0));
 
         if has_embeddings {
             query(

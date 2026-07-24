@@ -117,7 +117,10 @@ pub fn retention_expiry_for_layer(layer: MemoryLayer, occurred_at: &str) -> Opti
 
     chrono::DateTime::parse_from_rfc3339(occurred_at)
         .ok()
-        .map(|ts| (ts + chrono::Duration::days(retention_days)).to_rfc3339())
+        .map(|ts| {
+            (ts + chrono::Duration::days(retention_days))
+                .to_rfc3339_opts(chrono::SecondsFormat::Micros, true)
+        })
 }
 
 /// Convert a `PrivacyLevel` to its canonical string representation.
