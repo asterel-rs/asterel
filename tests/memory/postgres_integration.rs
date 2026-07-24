@@ -97,6 +97,31 @@ async fn postgres_append_resolve_recall_and_forget_happy_path() {
         forget.is_complete,
         "hard forget should verify cleanup artifacts"
     );
+    assert_eq!(
+        memory
+            .count_events(Some(&entity_id))
+            .await
+            .expect("hard forget event count should run"),
+        0,
+        "hard forget must physically remove the slot event log"
+    );
+    assert!(
+        memory
+            .resolve_slot(&entity_id, slot_key)
+            .await
+            .expect("hard-forgotten slot lookup should run")
+            .is_none(),
+        "hard forget must remove all resolvable projections"
+    );
+    assert!(
+        memory
+            .recall_scoped(RecallQuery::new(&entity_id, "hydrangeas", 5))
+            .await
+            .expect("hard-forgotten slot recall should run")
+            .iter()
+            .all(|entry| entry.slot_key.as_str() != slot_key),
+        "hard forget must remove searchable projections"
+    );
 }
 
 #[tokio::test]

@@ -359,8 +359,7 @@ impl PostgresMemory {
         .bind(evict_count)
         .execute(&self.pool)
         .await
-        .map(|r| r.rows_affected())
-        .unwrap_or(0);
+        .map_or(0, |r| r.rows_affected());
 
         if deleted > 0 {
             tracing::info!(deleted, "embedding cache LRU eviction completed");
@@ -369,30 +368,300 @@ impl PostgresMemory {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
+    async fn restore_retained_slot_projection(
+        tx: &mut sqlx_core::transaction::Transaction<'_, sqlx_postgres::Postgres>,
+        entity_id: String,
+        slot_key: String,
+    ) -> PostgresMemoryResult<bool> {
+        use sqlx_core::query::query;
+        use sqlx_core::row::Row;
+
+        let rows = query(
+            "SELECT event_id, value, source, confidence, importance, privacy_level, \
+                    signal_tier, layer, provenance_source_class, provenance_reference, \
+                    provenance_evidence_uri, retention_tier, retention_expires_at, \
+                    to_char(occurred_at AT TIME ZONE 'UTC', \
+                        'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS occurred_at_str \
+             FROM memory_events WHERE entity_id = $1 AND slot_key = $2",
+        )
+        .bind(&entity_id)
+        .bind(&slot_key)
+        .fetch_all(&mut **tx)
+        .await
+        .pg_query("select retained belief candidates")?;
+        let Some(row) = rows.iter().max_by(|left, right| {
+            let source_order = Self::source_priority(super::codec::str_to_source(
+                &left.get::<String, _>("source"),
+            ))
+            .cmp(&Self::source_priority(super::codec::str_to_source(
+                &right.get::<String, _>("source"),
+            )));
+            if !source_order.is_eq() {
+                return source_order;
+            }
+
+            let left_confidence = left.get::<f64, _>("confidence");
+            let right_confidence = right.get::<f64, _>("confidence");
+            if (left_confidence - right_confidence).abs() > 0.001 {
+                return left_confidence.total_cmp(&right_confidence);
+            }
+
+            Self::compare_normalized_timestamps(
+                &left.get::<String, _>("occurred_at_str"),
+                &right.get::<String, _>("occurred_at_str"),
+            )
+        }) else {
+            return Ok(false);
+        };
+        let event_id = row.get::<String, _>("event_id");
+        let value = row.get::<String, _>("value");
+        let source = row.get::<String, _>("source");
+        let confidence = row.get::<f64, _>("confidence");
+        let importance = row.get::<f64, _>("importance");
+        let privacy_level = row.get::<String, _>("privacy_level");
+        let signal_tier = row.get::<String, _>("signal_tier");
+        let layer = row.get::<String, _>("layer");
+        let provenance_source_class = row.try_get::<String, _>("provenance_source_class").ok();
+        let provenance_reference = row.try_get::<String, _>("provenance_reference").ok();
+        let provenance_evidence_uri = row.try_get::<String, _>("provenance_evidence_uri").ok();
+        let retention_tier = row.get::<String, _>("retention_tier");
+        let retention_expires_at = row
+            .try_get::<chrono::DateTime<chrono::Utc>, _>("retention_expires_at")
+            .ok();
+        drop(rows);
+
+        query(
+            "INSERT INTO belief_slots ( \
+                entity_id, slot_key, value, status, winner_event_id, source, confidence, \
+                importance, privacy_level, updated_at \
+             ) VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, now()) \
+             ON CONFLICT (entity_id, slot_key) DO UPDATE SET \
+                value = EXCLUDED.value, status = EXCLUDED.status, \
+                winner_event_id = EXCLUDED.winner_event_id, source = EXCLUDED.source, \
+                confidence = EXCLUDED.confidence, importance = EXCLUDED.importance, \
+                privacy_level = EXCLUDED.privacy_level, updated_at = EXCLUDED.updated_at",
+        )
+        .bind(&entity_id)
+        .bind(&slot_key)
+        .bind(&value)
+        .bind(&event_id)
+        .bind(&source)
+        .bind(confidence)
+        .bind(importance)
+        .bind(&privacy_level)
+        .execute(&mut **tx)
+        .await
+        .pg_write("restore retained belief slot")?;
+
+        let unit_id = format!("{entity_id}::{slot_key}");
+        query(
+            "INSERT INTO retrieval_units ( \
+                unit_id, entity_id, slot_key, content, signal_tier, promotion_status, \
+                importance, reliability, visibility, layer, provenance_source_class, \
+                provenance_reference, provenance_evidence_uri, retention_tier, \
+                retention_expires_at, updated_at \
+             ) VALUES ($1, $2, $3, $4, $5, 'promoted', $6, $7, $8, $9, $10, $11, $12, \
+                $13, $14, now()) \
+             ON CONFLICT (unit_id) DO UPDATE SET \
+                content = EXCLUDED.content, signal_tier = EXCLUDED.signal_tier, \
+                promotion_status = EXCLUDED.promotion_status, importance = EXCLUDED.importance, \
+                reliability = EXCLUDED.reliability, visibility = EXCLUDED.visibility, \
+                layer = EXCLUDED.layer, provenance_source_class = EXCLUDED.provenance_source_class, \
+                provenance_reference = EXCLUDED.provenance_reference, \
+                provenance_evidence_uri = EXCLUDED.provenance_evidence_uri, \
+                retention_tier = EXCLUDED.retention_tier, \
+                retention_expires_at = EXCLUDED.retention_expires_at, updated_at = EXCLUDED.updated_at",
+        )
+        .bind(unit_id)
+        .bind(&entity_id)
+        .bind(&slot_key)
+        .bind(&value)
+        .bind(&signal_tier)
+        .bind(importance)
+        .bind(confidence)
+        .bind(&privacy_level)
+        .bind(&layer)
+        .bind(provenance_source_class)
+        .bind(provenance_reference)
+        .bind(provenance_evidence_uri)
+        .bind(&retention_tier)
+        .bind(retention_expires_at)
+        .execute(&mut **tx)
+        .await
+        .pg_write("restore retained retrieval unit")?;
+
+        query(
+            "UPDATE graph_entities SET value = $3, source = $4, confidence = $5, \
+                importance = $6, privacy_level = $7, updated_at = now() \
+             WHERE graph_entity_id = ('slot::' || $1 || '::' || $2)",
+        )
+        .bind(&entity_id)
+        .bind(&slot_key)
+        .bind(&value)
+        .bind(&source)
+        .bind(confidence)
+        .bind(importance)
+        .bind(&privacy_level)
+        .execute(&mut **tx)
+        .await
+        .pg_write("restore retained slot graph projection")?;
+
+        Ok(true)
+    }
+
     /// Delete `memory_events` and `retrieval_units` whose retention has expired.
+    #[allow(clippy::too_many_lines)]
     async fn prune_expired_retention(&self) -> PostgresMemoryResult<()> {
         use sqlx_core::query::query;
+        use sqlx_core::row::Row;
 
-        let events_pruned = query(
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .pg_write("begin retention pruning transaction")?;
+        integrity::lock_memory_event_chain(&mut tx).await?;
+
+        let expired_events = query(
             "DELETE FROM memory_events \
-             WHERE retention_expires_at IS NOT NULL AND retention_expires_at < now()",
+             WHERE retention_expires_at IS NOT NULL AND retention_expires_at < now() \
+             RETURNING event_id, entity_id, slot_key, value",
         )
-        .execute(&self.pool)
+        .fetch_all(&mut *tx)
         .await
-        .map(|r| r.rows_affected())
-        .unwrap_or(0);
+        .pg_write("prune expired memory events")?;
+        let event_ids = expired_events
+            .iter()
+            .map(|row| row.get::<String, _>("event_id"))
+            .collect::<Vec<_>>();
+        let event_graph_ids = event_ids
+            .iter()
+            .map(|event_id| format!("event::{event_id}"))
+            .collect::<Vec<_>>();
+
+        if !event_ids.is_empty() {
+            query(
+                "DELETE FROM graph_edges WHERE event_id = ANY($1) \
+                    OR from_entity_id = ANY($2) OR to_entity_id = ANY($2)",
+            )
+            .bind(&event_ids)
+            .bind(&event_graph_ids)
+            .execute(&mut *tx)
+            .await
+            .pg_write("prune expired graph edges")?;
+
+            query("DELETE FROM graph_entity_aliases WHERE canonical_graph_entity_id = ANY($1)")
+                .bind(&event_graph_ids)
+                .execute(&mut *tx)
+                .await
+                .pg_write("prune expired graph aliases")?;
+
+            query("DELETE FROM graph_entities WHERE graph_entity_id = ANY($1)")
+                .bind(&event_graph_ids)
+                .execute(&mut *tx)
+                .await
+                .pg_write("prune expired event graph entities")?;
+
+            let expired_winners = query(
+                "DELETE FROM belief_slots WHERE winner_event_id = ANY($1) \
+                 RETURNING entity_id, slot_key",
+            )
+            .bind(&event_ids)
+            .fetch_all(&mut *tx)
+            .await
+            .pg_write("prune expired winning belief slots")?;
+            for row in expired_winners {
+                let entity_id = row.get::<String, _>("entity_id");
+                let slot_key = row.get::<String, _>("slot_key");
+                if Self::restore_retained_slot_projection(
+                    &mut tx,
+                    entity_id.clone(),
+                    slot_key.clone(),
+                )
+                .await?
+                {
+                    continue;
+                }
+                let slot_graph_id = format!("slot::{entity_id}::{slot_key}");
+                query("DELETE FROM retrieval_units WHERE entity_id = $1 AND slot_key = $2")
+                    .bind(&entity_id)
+                    .bind(&slot_key)
+                    .execute(&mut *tx)
+                    .await
+                    .pg_write("prune expired winning retrieval units")?;
+                query("DELETE FROM graph_edges WHERE from_entity_id = $1 OR to_entity_id = $1")
+                    .bind(&slot_graph_id)
+                    .execute(&mut *tx)
+                    .await
+                    .pg_write("prune expired winning slot graph edges")?;
+                query("DELETE FROM graph_entity_aliases WHERE canonical_graph_entity_id = $1")
+                    .bind(&slot_graph_id)
+                    .execute(&mut *tx)
+                    .await
+                    .pg_write("prune expired winning slot graph aliases")?;
+                query("DELETE FROM graph_entities WHERE graph_entity_id = $1")
+                    .bind(&slot_graph_id)
+                    .execute(&mut *tx)
+                    .await
+                    .pg_write("prune expired winning slot graph entity")?;
+            }
+
+            for row in &expired_events {
+                let value = row.get::<String, _>("value");
+                for role in [EmbeddingRole::Document, EmbeddingRole::Query] {
+                    query("DELETE FROM embedding_cache WHERE content_hash = $1")
+                        .bind(Self::content_hash(role, &value))
+                        .execute(&mut *tx)
+                        .await
+                        .pg_write("prune expired embedding cache entry")?;
+                }
+            }
+
+            let now = integrity::canonical_db_timestamp(&mut tx).await?;
+            Self::insert_deletion_ledger_entry(
+                &mut tx,
+                "system:retention",
+                "expired",
+                "retention",
+                &format!("pruned {} expired memory events", event_ids.len()),
+                &now,
+            )
+            .await?;
+            integrity::rebuild_memory_event_chain(&mut tx).await?;
+        }
 
         let units_pruned = query(
             "DELETE FROM retrieval_units \
              WHERE retention_expires_at IS NOT NULL AND retention_expires_at < now()",
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
-        .map(|r| r.rows_affected())
-        .unwrap_or(0);
+        .map(|result| result.rows_affected())
+        .pg_write("prune expired retrieval units")?;
 
-        if events_pruned > 0 || units_pruned > 0 {
-            tracing::info!(events_pruned, units_pruned, "retention pruning completed");
+        tx.commit()
+            .await
+            .pg_write("commit retention pruning transaction")?;
+
+        let mut owner_ids = expired_events
+            .iter()
+            .map(|row| row.get::<String, _>("entity_id"))
+            .collect::<Vec<_>>();
+        owner_ids.sort();
+        owner_ids.dedup();
+        for owner_id in owner_ids {
+            crate::core::memory::graphrag::activation_cache()
+                .invalidate(&crate::contracts::ids::EntityId::new(owner_id))
+                .await;
+        }
+
+        if !event_ids.is_empty() || units_pruned > 0 {
+            tracing::info!(
+                events_pruned = event_ids.len(),
+                units_pruned,
+                "retention pruning completed"
+            );
         }
 
         Ok(())
@@ -460,8 +729,7 @@ impl MemoryGovernance for PostgresMemory {
             let ok = query("SELECT 1 AS ok")
                 .fetch_one(&self.pool)
                 .await
-                .map(|row| row.get::<i32, _>("ok") == 1)
-                .unwrap_or(false);
+                .is_ok_and(|row| row.get::<i32, _>("ok") == 1);
 
             if ok {
                 // Prune rows with expired retention on each health check
@@ -556,7 +824,7 @@ impl MemoryGovernance for PostgresMemory {
                 "SELECT slot_key, value, source, confidence, importance, privacy_level, \
                         to_char(updated_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at_str \
                  FROM belief_slots \
-                 WHERE entity_id = $1 \
+                 WHERE entity_id = $1 AND status = 'active' \
                  ORDER BY updated_at DESC, slot_key ASC",
             )
             .bind(entity_id)

@@ -73,8 +73,7 @@ pub(crate) fn setup_project_context() -> Result<ProjectContext> {
     };
 
     let agent_name: String =
-        cliclack::input(format!("  {}", t!("onboard.context.agent_name_prompt")))
-            .interact()?;
+        cliclack::input(format!("  {}", t!("onboard.context.agent_name_prompt"))).interact()?;
 
     let style_options = [
         t!("onboard.context.style_direct").to_string(),

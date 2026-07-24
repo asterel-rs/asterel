@@ -1,3 +1,5 @@
+use anyhow::{Result, bail};
+
 use super::{
     AffectReading, Arc, CompanionTurnContract, EntityId, LoopStopReason, Observer, ObserverEvent,
     PersonId, PostTurnInput, PreTurnInput, SessionId, ToolLoopResult, TurnPostExecutionSeed,
@@ -102,17 +104,16 @@ pub(super) fn emit_turn_output_trace(
     });
 }
 
-/// Convenience wrapper that constructs a [`TurnExecutor`] from a
-/// [`TurnExecutionPlan`] and runs `execute`.
+/// Complete required post-turn persistence before delivery.
 ///
 /// # Errors
-/// Returns an error if the shared tool loop execution fails.
-pub(super) fn spawn_post_turn_processing(
+/// Returns an error if relationship or memory persistence fails.
+pub(super) async fn run_post_turn_processing(
     post_turn_seed: TurnPostExecutionSeed,
     affect: &AffectReading,
     result: &ToolLoopResult,
     working_memory: Option<WorkingMemoryView>,
-) {
+) -> Result<()> {
     let flush_policy_context = post_turn_seed.tenant_id.as_deref().map_or_else(
         crate::security::policy::TenantPolicyContext::disabled,
         crate::security::policy::TenantPolicyContext::enabled,
@@ -120,6 +121,7 @@ pub(super) fn spawn_post_turn_processing(
     let observer = Arc::clone(&post_turn_seed.observer);
     let post_turn_input = PostTurnInput {
         mem: Arc::clone(&post_turn_seed.mem),
+        auto_save: post_turn_seed.auto_save,
         person_id: post_turn_seed.person_id,
         person_entity_id: post_turn_seed.person_entity_id,
         user_message: post_turn_seed.user_message,
@@ -136,17 +138,20 @@ pub(super) fn spawn_post_turn_processing(
         contract: post_turn_seed.contract,
         observer: Arc::clone(&observer),
     };
-    let flush_mem = Arc::clone(&post_turn_seed.mem);
-    tokio::spawn(async move {
-        run_post_turn_hooks(&post_turn_input).await;
-        if let Some(mut working_memory) = working_memory {
-            flush_working_memory(
-                flush_mem.as_ref(),
-                &mut working_memory,
-                &flush_policy_context,
-                Some(observer.as_ref()),
-            )
-            .await;
-        }
-    });
+    if !run_post_turn_hooks(&post_turn_input).await {
+        bail!("post-turn relationship or autosave persistence failed");
+    }
+    if post_turn_seed.auto_save
+        && let Some(mut working_memory) = working_memory
+        && !flush_working_memory(
+            post_turn_seed.mem.as_ref(),
+            &mut working_memory,
+            &flush_policy_context,
+            Some(observer.as_ref()),
+        )
+        .await
+    {
+        bail!("post-turn working memory persistence failed");
+    }
+    Ok(())
 }
