@@ -12,9 +12,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/mdx": "^5.0.4",
-    "@astrojs/starlight": "^0.38.4",
-    "astro": "^6.1.10",
+    "@astrojs/mdx": "^7.0.3",
+    "@astrojs/starlight": "^0.41.4",
+    "astro": "^7.1.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
