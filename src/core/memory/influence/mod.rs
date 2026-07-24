@@ -13,7 +13,7 @@ pub use builder::build_context_bundle;
 pub use render::{
     CompanionGroundingAugmentation, GroundingExposureMonitorSnapshot, GroundingExposureProjection,
     build_companion_grounding_augmentation, build_companion_grounding_augmentation_block,
-    build_grounding_augmentation_block, grounding_exposure_monitor_snapshot,
-    render_grounding_contract,
+    build_companion_grounding_augmentation_with_privacy, build_grounding_augmentation_block,
+    grounding_exposure_monitor_snapshot, render_grounding_contract,
 };
 pub use types::{ContextBundle, GroundingEntry, GroundingTier};
