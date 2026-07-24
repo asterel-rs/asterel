@@ -27,6 +27,8 @@ use crate::security::writeback_guard::enforce_agent_autosave_write_policy;
 pub struct PostTurnInput {
     /// Memory backend for persisting post-turn events.
     pub mem: Arc<dyn Memory>,
+    /// Whether conversation-derived summaries should be persisted.
+    pub auto_save: bool,
     /// Person ID for relationship and working-memory updates.
     pub person_id: PersonId,
     /// Canonical person entity ID for persona-memory writes.
@@ -62,16 +64,17 @@ pub struct PostTurnInput {
 /// 2. Persist a compact user-message summary when the contract allows it.
 /// 3. Persist a compact assistant-response summary when the contract allows it.
 ///
-/// All errors are logged at debug level and silently swallowed so that a
-/// failing post-turn hook never disrupts the response path.
-pub async fn run_post_turn_hooks(input: &PostTurnInput) {
-    update_relationship_for_post_turn(input).await;
-    persist_user_summary_for_post_turn(input).await;
-    persist_assistant_summary_for_post_turn(input).await;
+/// Returns `false` when a required relationship or autosave write fails.
+pub async fn run_post_turn_hooks(input: &PostTurnInput) -> bool {
+    let relationship_ok = update_relationship_for_post_turn(input).await;
+    let user_summary_ok = !input.auto_save || persist_user_summary_for_post_turn(input).await;
+    let assistant_summary_ok =
+        !input.auto_save || persist_assistant_summary_for_post_turn(input).await;
     record_self_amendment_candidates_for_post_turn(input);
+    relationship_ok && user_summary_ok && assistant_summary_ok
 }
 
-async fn update_relationship_for_post_turn(input: &PostTurnInput) {
+async fn update_relationship_for_post_turn(input: &PostTurnInput) -> bool {
     let outcome_success = if input.is_success { 0.85 } else { 0.3 };
     if let Err(error) = update_relationship_after_turn_for_entity(
         input.mem.as_ref(),
@@ -89,12 +92,14 @@ async fn update_relationship_for_post_turn(input: &PostTurnInput) {
             "post-turn relationship update skipped"
         );
         record_post_turn_hook(input.observer.as_ref(), "relationship_update", "failure");
+        false
     } else {
         record_post_turn_hook(input.observer.as_ref(), "relationship_update", "success");
+        true
     }
 }
 
-async fn persist_user_summary_for_post_turn(input: &PostTurnInput) {
+async fn persist_user_summary_for_post_turn(input: &PostTurnInput) -> bool {
     let user_summary = safe_memory_excerpt(&input.user_message, 100);
     if writeback_slot_allowed(&input.contract, SLOT_CONVERSATION_USER_MSG) {
         let user_event = MemoryEventInput::new(
@@ -117,12 +122,14 @@ async fn persist_user_summary_for_post_turn(input: &PostTurnInput) {
         if let Err(error) = enforce_agent_autosave_write_policy(&user_event) {
             tracing::warn!(%error, "post-turn user message save rejected by write policy");
             record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "rejected");
-        } else if let Err(error) = input.mem.append_event(user_event).await {
+            return false;
+        }
+        if let Err(error) = input.mem.append_event(user_event).await {
             tracing::debug!(%error, "post-turn user message save failed");
             record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "failure");
-        } else {
-            record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "success");
+            return false;
         }
+        record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "success");
     } else {
         tracing::warn!(
             slot_key = SLOT_CONVERSATION_USER_MSG,
@@ -130,9 +137,10 @@ async fn persist_user_summary_for_post_turn(input: &PostTurnInput) {
         );
         record_post_turn_hook(input.observer.as_ref(), "autosave_user_summary", "skipped");
     }
+    true
 }
 
-async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) {
+async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) -> bool {
     let response_summary = safe_memory_excerpt(&input.response, 100);
     if writeback_slot_allowed(&input.contract, SLOT_CONVERSATION_ASSISTANT_RESP) {
         let response_event = MemoryEventInput::new(
@@ -159,20 +167,22 @@ async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) {
                 "autosave_assistant_summary",
                 "rejected",
             );
-        } else if let Err(error) = input.mem.append_event(response_event).await {
+            return false;
+        }
+        if let Err(error) = input.mem.append_event(response_event).await {
             tracing::debug!(%error, "post-turn assistant response save failed");
             record_post_turn_hook(
                 input.observer.as_ref(),
                 "autosave_assistant_summary",
                 "failure",
             );
-        } else {
-            record_post_turn_hook(
-                input.observer.as_ref(),
-                "autosave_assistant_summary",
-                "success",
-            );
+            return false;
         }
+        record_post_turn_hook(
+            input.observer.as_ref(),
+            "autosave_assistant_summary",
+            "success",
+        );
     } else {
         tracing::warn!(
             slot_key = SLOT_CONVERSATION_ASSISTANT_RESP,
@@ -184,6 +194,7 @@ async fn persist_assistant_summary_for_post_turn(input: &PostTurnInput) {
             "skipped",
         );
     }
+    true
 }
 
 fn record_self_amendment_candidates_for_post_turn(input: &PostTurnInput) {

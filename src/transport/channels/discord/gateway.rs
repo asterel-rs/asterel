@@ -733,8 +733,7 @@ fn build_gateway_ws_url(base_url: &str) -> String {
 fn invalid_session_backoff_secs() -> u64 {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.subsec_nanos())
-        .unwrap_or(0);
+        .map_or(0, |duration| duration.subsec_nanos());
     1 + u64::from(nanos % 5)
 }
 

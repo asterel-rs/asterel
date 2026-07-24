@@ -37,6 +37,7 @@ use super::{PolicyAssemblyInput, build_policy_section};
 
 pub(crate) struct CompanionTurnRuntimeDeps<'a> {
     pub(crate) mem: Arc<dyn Memory>,
+    pub(crate) auto_save: bool,
     pub(crate) persona_config: &'a PersonaConfig,
     pub(crate) session_manager: Option<&'a SessionOrchestrator>,
     pub(crate) working_memory_capacity: usize,
@@ -79,6 +80,7 @@ pub(crate) struct CompanionTransportTurnRequest<'a> {
 
 pub(crate) struct CompanionTurnServiceRequest<'a> {
     pub(crate) mem: Arc<dyn Memory>,
+    pub(crate) auto_save: bool,
     pub(crate) workspace_dir: &'a Path,
     pub(crate) base_prompt: &'a str,
     pub(crate) user_message: &'a str,
@@ -163,6 +165,7 @@ pub(crate) async fn run_companion_turn(
 
     let post_turn_seed = TurnPostExecutionSeed {
         mem: Arc::clone(&request.mem),
+        auto_save: request.auto_save,
         person_id: PersonId::new(request.person_id),
         person_entity_id: EntityId::new(
             request
@@ -269,6 +272,7 @@ pub(crate) async fn run_transport_companion_turn(
 
     run_companion_turn(CompanionTurnServiceRequest {
         mem: Arc::clone(&request.runtime.mem),
+        auto_save: request.runtime.auto_save,
         workspace_dir: request.workspace_dir,
         base_prompt: request.base_prompt,
         user_message: request.user_message,
