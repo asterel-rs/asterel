@@ -56,6 +56,7 @@ pub(super) struct SleepConsolidationReport {
 
 #[derive(Debug)]
 struct ConsolidationCandidate {
+    slot_key: String,
     content: String,
     signal_tier: String,
     importance: f64,
@@ -96,13 +97,15 @@ pub(super) fn run_sleep_consolidation(
         let now = Utc::now();
         let scan_cutoff = now - Duration::hours(SLEEP_SCAN_WINDOW_HOURS);
         let batch_date = now.format("%Y-%m-%d").to_string();
-        let now_rfc3339 = now.to_rfc3339();
 
         postgres::block_on_pg_result(async {
             let mut tx = pool
                 .begin()
                 .await
                 .context("begin sleep consolidation transaction")?;
+            crate::core::memory::postgres::integrity::lock_memory_event_chain(&mut tx).await?;
+            let now_rfc3339 =
+                crate::core::memory::postgres::integrity::canonical_db_timestamp(&mut tx).await?;
 
             let grouped = postgres::load_sleep_consolidation_groups(&mut tx, scan_cutoff).await?;
             let owner_ids: HashSet<EntityId> =
@@ -149,6 +152,7 @@ pub(super) fn run_sleep_consolidation(
                     &group_key,
                     &snapshot_slot_key,
                     &aggregate,
+                    &candidates,
                     &now_rfc3339,
                 )
                 .await?;
@@ -269,6 +273,7 @@ mod tests {
     fn aggregate_group_uses_most_restrictive_visibility() {
         let candidates = vec![
             ConsolidationCandidate {
+                slot_key: "topic.public".to_string(),
                 content: "public memory".to_string(),
                 signal_tier: "raw".to_string(),
                 importance: 0.2,
@@ -276,6 +281,7 @@ mod tests {
                 visibility: "public".to_string(),
             },
             ConsolidationCandidate {
+                slot_key: "topic.secret".to_string(),
                 content: "secret memory".to_string(),
                 signal_tier: "candidate".to_string(),
                 importance: 0.8,

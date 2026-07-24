@@ -24,7 +24,6 @@ use crate::config::{MemoryBackend, MemoryConfig};
 use crate::contracts::ids::{EntityId, SlotKey};
 
 const PROMOTION_WINDOW_HOURS: i64 = 6;
-const EPISODIC_RETENTION_DAYS: i64 = 30;
 const HIGH_IMPORTANCE_THRESHOLD: f64 = 0.75;
 const IMPORTANCE_THRESHOLD: f64 = 0.55;
 const RELIABILITY_THRESHOLD: f64 = 0.70;
@@ -60,15 +59,20 @@ pub(super) fn promote_expiring_working_memories(
         let pool = open_pool(workspace_dir, config)?;
         let now = Utc::now();
         let promotion_cutoff = now + Duration::hours(PROMOTION_WINDOW_HOURS);
-        let episodic_expiry = now + Duration::days(EPISODIC_RETENTION_DAYS);
-        let now_rfc3339 = now.to_rfc3339();
-        let episodic_expiry_rfc3339 = episodic_expiry.to_rfc3339();
 
         block_on_pg_result(async {
             let mut tx = pool
                 .begin()
                 .await
                 .context("begin working-memory promotion transaction")?;
+            crate::core::memory::postgres::integrity::lock_memory_event_chain(&mut tx).await?;
+            let now_rfc3339 =
+                crate::core::memory::postgres::integrity::canonical_db_timestamp(&mut tx).await?;
+            let episodic_expiry_rfc3339 = crate::core::memory::codec::retention_expiry_for_layer(
+                crate::core::memory::MemoryLayer::Episodic,
+                &now_rfc3339,
+            )
+            .context("compute episodic promotion retention expiry")?;
 
             let candidates = load_promotion_candidates(&mut tx, now, promotion_cutoff).await?;
 
@@ -285,6 +289,19 @@ async fn insert_promoted_memory_event(
     .execute(&mut **tx)
     .await
     .context("insert episodic memory event from working promotion")?;
+
+    query(
+        "INSERT INTO memory_derivations ( \
+            derived_entity_id, derived_slot_key, source_entity_id, source_slot_key \
+         ) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+    )
+    .bind(candidate.entity_id.as_str())
+    .bind(promoted_slot_key)
+    .bind(candidate.entity_id.as_str())
+    .bind(candidate.original_slot_key.as_str())
+    .execute(&mut **tx)
+    .await
+    .context("record promoted memory lineage")?;
 
     Ok(())
 }

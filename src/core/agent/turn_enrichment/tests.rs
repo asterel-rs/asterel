@@ -1122,6 +1122,7 @@ async fn run_post_turn_hooks_persists_conversation_summaries_to_person_entity_na
     let mem = Arc::new(MarkdownMemory::new(temp.path()));
     let input = PostTurnInput {
         mem: Arc::clone(&mem) as Arc<dyn Memory>,
+        auto_save: true,
         person_id: PersonId::new("person-test"),
         person_entity_id: EntityId::new("person:person-test"),
         user_message: "hello there".to_string(),
@@ -1155,12 +1156,50 @@ async fn run_post_turn_hooks_persists_conversation_summaries_to_person_entity_na
 }
 
 #[tokio::test]
+async fn run_post_turn_hooks_respects_disabled_auto_save() {
+    let temp = TempDir::new().expect("temp dir");
+    let mem = Arc::new(MarkdownMemory::new(temp.path()));
+    let input = PostTurnInput {
+        mem: Arc::clone(&mem) as Arc<dyn Memory>,
+        auto_save: false,
+        person_id: PersonId::new("person-test"),
+        person_entity_id: EntityId::new("person:person-test"),
+        user_message: "do not persist this user text".to_string(),
+        response: "do not persist this assistant text".to_string(),
+        affect_label: AffectLabel::Neutral,
+        affect_intensity: 0.5,
+        is_success: true,
+        tenant_id: None,
+        surface: Some("test".to_string()),
+        enable_self_amendment_candidates: false,
+        self_amendment_candidate_sink: None,
+        contract: compile_turn_contract("base", "", None, "", 0.4),
+        observer: noop_observer(),
+    };
+
+    assert!(run_post_turn_hooks(&input).await);
+    assert!(
+        mem.resolve_slot("person:person-test", SLOT_CONVERSATION_USER_MSG)
+            .await
+            .expect("user slot lookup should succeed")
+            .is_none()
+    );
+    assert!(
+        mem.resolve_slot("person:person-test", SLOT_CONVERSATION_ASSISTANT_RESP)
+            .await
+            .expect("assistant slot lookup should succeed")
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn run_post_turn_hooks_records_hook_metrics() {
     let temp = TempDir::new().expect("temp dir");
     let mem = Arc::new(MarkdownMemory::new(temp.path()));
     let observer = Arc::new(RecordingObserver::default());
     let input = PostTurnInput {
         mem: Arc::clone(&mem) as Arc<dyn Memory>,
+        auto_save: true,
         person_id: PersonId::new("person-test"),
         person_entity_id: EntityId::new("person:person-test"),
         user_message: "hello there".to_string(),
@@ -1205,6 +1244,7 @@ fn post_turn_self_amendment_hook_generates_dry_run_candidate_only() {
     let mem = Arc::new(MarkdownMemory::new(temp.path()));
     let input = PostTurnInput {
         mem: Arc::clone(&mem) as Arc<dyn Memory>,
+        auto_save: true,
         person_id: PersonId::new("person-test"),
         person_entity_id: EntityId::new("tenant-alpha:person:person-test"),
         user_message: "your answer is wrong".to_string(),
@@ -1238,6 +1278,7 @@ fn post_turn_self_amendment_hook_respects_feature_gate() {
     let mem = Arc::new(MarkdownMemory::new(temp.path()));
     let input = PostTurnInput {
         mem: Arc::clone(&mem) as Arc<dyn Memory>,
+        auto_save: true,
         person_id: PersonId::new("person-test"),
         person_entity_id: EntityId::new("tenant-alpha:person:person-test"),
         user_message: "your answer is wrong".to_string(),

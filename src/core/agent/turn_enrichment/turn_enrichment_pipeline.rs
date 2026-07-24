@@ -5,12 +5,12 @@ use super::turn_enrichment_io::{
     recall_items, save_compaction_affect_snapshot, soul_surface_exposure, soul_topology_cues,
 };
 use super::{
-    AffectLabel, AffectReading, DEFAULT_RECALL_MIN_CONFIDENCE, JudgmentCore, PersonaConfig,
-    PersonaContextInput, PreTurnEnrichment, PreTurnInput, RuleBasedDetector, SoulIdentityCues,
-    SoulPressureInput, SoulRecallExposure, ToPrimitive, affect_to_style_delta,
-    build_companion_grounding_augmentation, build_prompt_self_contract, compile_turn_contract,
-    derive_soul_pressure, derive_soul_pressure_with_topology, infer_user_model,
-    load_relationship_for_entity, load_user_profile_for_entity, person_entity_id,
+    AffectLabel, AffectReading, DEFAULT_RECALL_MIN_CONFIDENCE, ExposurePlanContract, JudgmentCore,
+    PersonaConfig, PersonaContextInput, PreTurnEnrichment, PreTurnInput, RuleBasedDetector,
+    SoulIdentityCues, SoulPressureInput, SoulRecallExposure, ToPrimitive, affect_to_style_delta,
+    build_companion_grounding_augmentation_with_privacy, build_prompt_self_contract,
+    compile_turn_contract, derive_soul_pressure, derive_soul_pressure_with_topology,
+    infer_user_model, load_relationship_for_entity, load_user_profile_for_entity, person_entity_id,
     render_behavior_selection_block, render_judgment_core_turn_block,
     render_relationship_context_block, render_response_style_block, render_self_contract_block,
     render_soul_pressure_block, render_style_guidance, render_system_prompt_from_contract,
@@ -174,8 +174,12 @@ async fn build_persona_context(input: PersonaContextInput<'_>) -> Option<String>
     let min_confidence = input
         .recall_min_confidence
         .unwrap_or(DEFAULT_RECALL_MIN_CONFIDENCE);
-    let grounding_augmentation =
-        build_companion_grounding_augmentation(input.user_message, &recall_items, min_confidence);
+    let grounding_augmentation = build_companion_grounding_augmentation_with_privacy(
+        input.user_message,
+        &recall_items,
+        min_confidence,
+        !matches!(input.exposure_plan, Some(ExposurePlanContract::PublicSafe)),
+    );
     let topology_snapshot = build_transport_topology_snapshot(
         input.mem,
         input.entity_id,

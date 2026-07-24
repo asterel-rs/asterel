@@ -429,6 +429,7 @@ async fn execute_websocket_turn_with_streaming(
     let execution = run_transport_companion_turn(CompanionTransportTurnRequest {
         runtime: CompanionTurnRuntimeDeps {
             mem: Arc::clone(&request.state.runtime.mem),
+            auto_save: request.state.runtime.config.memory.auto_save,
             persona_config: &request.state.runtime.config.persona,
             session_manager: request.state.runtime.session_manager.as_deref(),
             working_memory_capacity: request.state.runtime.config.memory.working_memory_capacity,
