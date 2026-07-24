@@ -406,7 +406,7 @@ pub fn skills_to_prompt(skills: &[Skill]) -> String {
                 } else {
                     kind.as_str()
                 };
-                let _ = writeln!(prompt, "- **{name}**: {description} ({kind})",);
+                let _ = writeln!(prompt, "- **{name}**: {description} ({kind})");
             }
         }
 

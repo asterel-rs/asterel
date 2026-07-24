@@ -221,10 +221,7 @@ impl SubagentOrchestrator {
 
     #[must_use]
     pub fn is_configured(&self) -> bool {
-        self.runtime
-            .read()
-            .map(|guard| guard.is_some())
-            .unwrap_or(false)
+        self.runtime.read().is_ok_and(|guard| guard.is_some())
     }
 
     fn complete_run(&self, run_id: &RunId, result: Result<String>) {

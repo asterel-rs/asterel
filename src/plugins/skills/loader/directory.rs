@@ -99,9 +99,7 @@ pub(super) fn canonicalize_under_root(path: &Path, root: &Path) -> Result<PathBu
 
 /// Returns `true` if `path` is a symbolic link.
 pub(super) fn is_symlink(path: &Path) -> bool {
-    std::fs::symlink_metadata(path)
-        .map(|meta| meta.file_type().is_symlink())
-        .unwrap_or(false)
+    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
 fn append_skill_dir_watch_entries(skills_dir: &Path, entries: &mut Vec<SkillWatchEntry>) {

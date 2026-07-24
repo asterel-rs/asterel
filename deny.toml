@@ -39,8 +39,6 @@ skip = [
     { name = "serde_spanned", version = "0.6" },
     # sqlx-core and tokio-tungstenite pin webpki-roots ^0.26
     { name = "webpki-roots",  version = "0.26" },
-    # chacha20poly1305 0.10 ships chacha20 0.9; rand 0.10 ships chacha20 0.10
-    { name = "chacha20",      version = "0.9" },
     # cron 0.16 depends on phf 0.11
     { name = "phf",           version = "0.11" },
     { name = "phf_shared",    version = "0.11" },
