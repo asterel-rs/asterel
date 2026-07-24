@@ -46,7 +46,16 @@ impl ToolMiddleware for EntityRateLimitMiddleware {
         ctx: &'a ExecutionContext,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<MiddlewareDecision>> + Send + 'a>> {
         Box::pin(async move {
-            match ctx.rate_limiter.check_and_record(ctx.entity_id.as_str()) {
+            let conversation_id = ctx
+                .session_id
+                .as_deref()
+                .or(ctx.source_channel_id.as_deref());
+            let workspace_id = ctx.workspace_dir.to_string_lossy();
+            match ctx.rate_limiter.check_and_record_scoped(
+                ctx.entity_id.as_str(),
+                conversation_id,
+                Some(workspace_id.as_ref()),
+            ) {
                 Ok(()) => Ok(MiddlewareDecision::Continue),
                 Err(RateLimitError::GlobalExhausted) => Ok(MiddlewareDecision::Block(
                     SECURITY_BLOCK_GLOBAL_ACTION_LIMIT_EXCEEDED.to_string(),
@@ -80,6 +89,72 @@ impl ToolMiddleware for EntityRateLimitMiddleware {
         _ctx: &'a ExecutionContext,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use super::EntityRateLimitMiddleware;
+    use crate::core::tools::middleware::{ExecutionContext, MiddlewareDecision, ToolMiddleware};
+    use crate::security::{EntityRateLimiter, SecurityPolicy};
+
+    #[tokio::test]
+    async fn entity_rate_limit_middleware_enforces_conversation_scope() {
+        let limiter = Arc::new(EntityRateLimiter::new_with_scopes(100, 100, 1, 100, 0, 0));
+        let mut first = ExecutionContext::test_default(Arc::new(SecurityPolicy::default()));
+        first.rate_limiter = Arc::clone(&limiter);
+        first.session_id = Some("conversation-a".to_string());
+        first.entity_id = "entity-a".into();
+        let mut second = first.clone();
+        second.entity_id = "entity-b".into();
+
+        let middleware = EntityRateLimitMiddleware;
+        assert!(matches!(
+            middleware
+                .before_execute("test", &json!({}), &first)
+                .await
+                .expect("first action should be evaluated"),
+            MiddlewareDecision::Continue
+        ));
+        assert!(matches!(
+            middleware
+                .before_execute("test", &json!({}), &second)
+                .await
+                .expect("second action should be evaluated"),
+            MiddlewareDecision::Block(message) if message.contains("conversation action limit")
+        ));
+    }
+
+    #[tokio::test]
+    async fn entity_rate_limit_middleware_enforces_workspace_scope() {
+        let limiter = Arc::new(EntityRateLimiter::new_with_scopes(100, 100, 100, 1, 0, 0));
+        let mut first = ExecutionContext::test_default(Arc::new(SecurityPolicy::default()));
+        first.rate_limiter = Arc::clone(&limiter);
+        first.workspace_dir = "/tmp/asterel-rate-limit-workspace".into();
+        first.entity_id = "entity-a".into();
+        let mut second = first.clone();
+        second.entity_id = "entity-b".into();
+        second.session_id = Some("conversation-b".to_string());
+
+        let middleware = EntityRateLimitMiddleware;
+        assert!(matches!(
+            middleware
+                .before_execute("test", &json!({}), &first)
+                .await
+                .expect("first action should be evaluated"),
+            MiddlewareDecision::Continue
+        ));
+        assert!(matches!(
+            middleware
+                .before_execute("test", &json!({}), &second)
+                .await
+                .expect("second action should be evaluated"),
+            MiddlewareDecision::Block(message) if message.contains("workspace action limit")
+        ));
     }
 }
 

@@ -347,6 +347,7 @@ pub(in super::super) async fn run_tool_loop(
     let outcome = run_transport_companion_turn(CompanionTransportTurnRequest {
         runtime: CompanionTurnRuntimeDeps {
             mem: Arc::clone(&state.runtime.mem),
+            auto_save: state.runtime.config.memory.auto_save,
             persona_config: &state.runtime.config.persona,
             session_manager: state.runtime.session_manager.as_deref(),
             working_memory_capacity: state.runtime.config.memory.working_memory_capacity,

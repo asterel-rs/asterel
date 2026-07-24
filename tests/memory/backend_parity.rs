@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fmt, fs};
 
 use anyhow::{Result, anyhow};
+use asterel::core::memory::embeddings::NoopEmbedding;
 use asterel::core::memory::{
-    CapabilitySupport, ForgetMode, ForgetStatus, Memory, MemoryCategory,
+    CapabilitySupport, ForgetMode, ForgetStatus, Memory, MemoryCategory, PostgresMemory,
     capability_matrix_for_memory, ensure_forget_mode_supported,
 };
 
@@ -29,9 +31,6 @@ fn report_path() -> PathBuf {
 struct LifecycleBaseline {
     resolve_present: bool,
     recall_contains_slot: bool,
-    hard_forget_applied: bool,
-    hard_forget_complete: bool,
-    hard_forget_status: ForgetStatus,
 }
 
 #[derive(Debug, Clone)]
@@ -251,23 +250,6 @@ async fn collect_backend_report(
             .await?;
         let verdict = ensure_explicit_contract(backend, mode, support, preflight, &outcome)?;
 
-        if mode == ForgetMode::Hard
-            && support == CapabilitySupport::Supported
-            && (outcome.was_applied != baseline.hard_forget_applied
-                || outcome.is_complete != baseline.hard_forget_complete
-                || outcome.status != baseline.hard_forget_status)
-        {
-            return Err(anyhow!(
-                "UNEXPECTED_DRIFT backend={backend} scenario=hard_forget_parity applied={} complete={} status={} expected_applied={} expected_complete={} expected_status={}",
-                outcome.was_applied,
-                outcome.is_complete,
-                status_label(outcome.status),
-                baseline.hard_forget_applied,
-                baseline.hard_forget_complete,
-                status_label(baseline.hard_forget_status)
-            ));
-        }
-
         rows.push(ReportRow {
             backend,
             scenario: "forget_mode",
@@ -311,16 +293,9 @@ async fn markdown_baseline(memory: &dyn Memory) -> Result<LifecycleBaseline> {
             .await
             .iter()
             .any(|item| item.value.contains("baseline payload"));
-    let hard = memory
-        .forget_slot(entity, slot, ForgetMode::Hard, "task-19 baseline")
-        .await?;
-
     Ok(LifecycleBaseline {
         resolve_present,
         recall_contains_slot,
-        hard_forget_applied: hard.was_applied,
-        hard_forget_complete: hard.is_complete,
-        hard_forget_status: hard.status,
     })
 }
 
@@ -357,15 +332,28 @@ async fn memory_backend_parity_matrix() {
             .expect("markdown parity scenarios should satisfy parity/degraded contract"),
     );
 
+    let postgres_enabled = if let Some(database_url) = crate::test_env::postgres_url() {
+        let postgres =
+            PostgresMemory::connect(&database_url, Arc::new(NoopEmbedding), 0, false, 0.0)
+                .await
+                .expect("postgres parity backend should connect and migrate");
+        rows.extend(
+            collect_backend_report("postgres", &postgres, &baseline)
+                .await
+                .expect("postgres parity scenarios should satisfy declared capability contracts"),
+        );
+        true
+    } else {
+        false
+    };
+
     let report_path = report_path();
     write_report(&rows, &report_path)
         .expect("parity report should be persisted for CI diagnostics");
 
     let row_count = rows.len();
-    assert_eq!(
-        row_count, 5,
-        "expected 2 lifecycle rows + 3 forget-mode rows, got {row_count}"
-    );
+    let expected_rows = if postgres_enabled { 10 } else { 5 };
+    assert_eq!(row_count, expected_rows);
 
     let row_for = |scenario: &str, mode: &str| {
         rows.iter()
@@ -392,6 +380,22 @@ async fn memory_backend_parity_matrix() {
     let tombstone = row_for("forget_mode", "tombstone");
     assert_eq!(tombstone.support, "DEGRADED");
     assert_eq!(tombstone.status, "degraded_non_complete");
+
+    if postgres_enabled {
+        for mode in ["soft", "hard", "tombstone"] {
+            let row = rows
+                .iter()
+                .find(|row| {
+                    row.backend == "postgres" && row.scenario == "forget_mode" && row.mode == mode
+                })
+                .unwrap_or_else(|| panic!("missing postgres forget row mode={mode}"));
+            assert_eq!(row.support, "SUPPORTED");
+            assert_eq!(row.status, "complete");
+            assert!(row.applied);
+            assert!(row.complete);
+            assert!(!row.degraded);
+        }
+    }
 
     let report =
         fs::read_to_string(&report_path).expect("parity report should be readable after writing");
