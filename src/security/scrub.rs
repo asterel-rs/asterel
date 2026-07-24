@@ -26,11 +26,7 @@ fn token_end(input: &str, from: usize) -> usize {
 fn scrub_after_marker(scrubbed: &mut String, marker: &str) -> bool {
     let mut modified = false;
     let mut search_from = 0;
-    loop {
-        let Some(rel) = scrubbed[search_from..].find(marker) else {
-            break;
-        };
-
+    while let Some(rel) = scrubbed[search_from..].find(marker) {
         let start = search_from + rel;
         let content_start = start + marker.len();
         let end = token_end(scrubbed, content_start);
@@ -57,11 +53,7 @@ fn scrub_pem_blocks(scrubbed: &mut String) -> bool {
     let mut modified = false;
     let mut search_from = 0;
 
-    loop {
-        let Some(rel_begin) = scrubbed[search_from..].find(PEM_BEGIN_MARKER) else {
-            break;
-        };
-
+    while let Some(rel_begin) = scrubbed[search_from..].find(PEM_BEGIN_MARKER) {
         let begin = search_from + rel_begin;
         let kind_start = begin + PEM_BEGIN_MARKER.len();
         let Some(rel_kind_end) = scrubbed[kind_start..].find(PEM_LINE_SUFFIX) else {
