@@ -147,6 +147,7 @@ pub(super) async fn load_sleep_consolidation_groups(
             })
             .or_default()
             .push(ConsolidationCandidate {
+                slot_key,
                 content: row.get("content"),
                 signal_tier: row.get("signal_tier"),
                 importance: row.get("importance"),
@@ -395,6 +396,7 @@ pub(super) async fn insert_sleep_snapshot_event(
     group_key: &GroupKey,
     snapshot_slot_key: &str,
     aggregate: &GroupAggregate,
+    candidates: &[ConsolidationCandidate],
     now_rfc3339: &str,
 ) -> Result<()> {
     let event_id = Uuid::new_v4().to_string();
@@ -454,6 +456,21 @@ pub(super) async fn insert_sleep_snapshot_event(
     .execute(&mut **tx)
     .await
     .context("insert semantic sleep snapshot event")?;
+
+    for candidate in candidates {
+        query(
+            "INSERT INTO memory_derivations ( \
+                derived_entity_id, derived_slot_key, source_entity_id, source_slot_key \
+             ) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+        )
+        .bind(group_key.entity_id.as_str())
+        .bind(snapshot_slot_key)
+        .bind(group_key.entity_id.as_str())
+        .bind(&candidate.slot_key)
+        .execute(&mut **tx)
+        .await
+        .context("record sleep snapshot lineage")?;
+    }
 
     Ok(())
 }

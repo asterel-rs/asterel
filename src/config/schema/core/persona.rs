@@ -569,7 +569,8 @@ fn default_character_extraversion() -> f64 {
     0.50
 }
 
-pub(crate) const DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE: &str = "The agent must not treat human time, trust, memory, or vulnerability as disposable context.";
+pub(crate) const DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE: &str =
+    "The agent must not treat human time, trust, memory, or vulnerability as disposable context.";
 
 fn default_character_soul_root_sentence() -> String {
     DEFAULT_CHARACTER_SOUL_ROOT_SENTENCE.to_string()
