@@ -10,7 +10,7 @@
   <p>
     <a href="https://www.rust-lang.org"><img alt="Rust" src="https://img.shields.io/badge/rust-2024_edition-orange.svg"></a>
     <img alt="Platform" src="https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg">
-    <img alt="Status" src="https://img.shields.io/badge/status-active_development-8a6f4d.svg">
+    <img alt="Status" src="https://img.shields.io/badge/status-archived-lightgrey.svg">
   </p>
 
   <p>
@@ -26,9 +26,10 @@
 
 ---
 
-> [!WARNING]
-> Asterel is pre-1.0 and in active development. APIs, commands, configuration, and behavior may
-> change between commits.
+> [!CAUTION]
+> This repository was archived on 2026-09-23 and is no longer maintained. It is read-only:
+> issues, pull requests, and dependency updates are not accepted. The code is kept for reference
+> under its existing licenses.
 
 ## The shape of the project
 
